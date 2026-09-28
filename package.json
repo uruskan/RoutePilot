@@ -1,0 +1,27 @@
+{
+  "name": "routepilot",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "desktop/main.mjs",
+  "description": "A focused local route dashboard for Elite Dangerous",
+  "scripts": {
+    "start": "electron .",
+    "desktop": "electron .",
+    "serve": "node server/index.mjs",
+    "cli": "node cli/routepilot.mjs",
+    "dev": "vite",
+    "build": "vite build",
+    "test": "node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "lucide-react": "1.48.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "6.1.1",
+    "electron": "44.4.5",
+    "vite": "8.3.1"
+  }
+}
