@@ -78,13 +78,18 @@ test('journal coordinates follow jumps, are copied and become unknown across ses
   assert.equal(reader.snapshot().telemetry.position, null);
 });
 
-test('desktop opens only exact Spansh station links when clicked', async () => {
+test('desktop opens only exact station sources and the specific access guide', async () => {
   const opened = [];
   for (const url of ['file:///C:/Windows/System32/cmd.exe', 'https://evil.example/station/123',
     'https://spansh.co.uk.evil.example/station/123', 'https://user@spansh.co.uk/station/123',
-    'https://spansh.co.uk/station/123?redirect=elsewhere', 'http://spansh.co.uk/station/123']) {
+    'https://spansh.co.uk/station/123?redirect=elsewhere', 'http://spansh.co.uk/station/123',
+    'https://pilotstradenetwork.com.evil.example/booze-cruise/', 'https://pilotstradenetwork.com/',
+    'https://pilotstradenetwork.com/booze-cruise/?redirect=elsewhere', 'http://pilotstradenetwork.com/booze-cruise/',
+    'https://user@pilotstradenetwork.com/booze-cruise/', 'https://pilotstradenetwork.com:8080/booze-cruise/',
+    'https://pilotstradenetwork.com/booze-cruise/#anything']) {
     assert.equal(await openMarketSource(url, value => opened.push(value)), false);
   }
   assert.equal(await openMarketSource('https://spansh.co.uk/station/123', value => opened.push(value)), true);
-  assert.deepEqual(opened, ['https://spansh.co.uk/station/123']);
+  assert.equal(await openMarketSource('https://pilotstradenetwork.com/booze-cruise/', value => opened.push(value)), true);
+  assert.deepEqual(opened, ['https://spansh.co.uk/station/123', 'https://pilotstradenetwork.com/booze-cruise/']);
 });

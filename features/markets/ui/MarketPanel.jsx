@@ -2,36 +2,16 @@ import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { createMarketClient, settingsToDraft, draftToPatch, formatNumber, formatAge } from './market-client.mjs';
 import './MarketPanel.css';
 import { SPREADSHEET_PRESETS } from '../presets.mjs';
+import { ArrowDownToLine, ChevronDown, MapPin, RefreshCw, SlidersHorizontal } from 'lucide-react';
+import TradeCard from './TradeCard.jsx';
 
 const SORT_LABELS = {
-  closestSeller: 'Closest seller to me', shortestRoute: 'Shortest seller → buyer route',
-  margin: 'Highest profit per tonne', loadProfit: 'Highest affordable profit per load',
-  stockProfit: 'Highest conditional full-stock profit',
+  closestSeller: 'Closest to me', shortestRoute: 'Shortest trade route',
+  margin: 'Profit per tonne', loadProfit: 'Profit per load',
+  stockProfit: 'Total stock profit',
 };
 const noToken = () => null;
 const timeLabel = value => value ? new Date(value).toLocaleString() : 'Never';
-const credits = value => value === null || value === undefined ? 'Unknown' : `${formatNumber(value)} Cr`;
-
-function StationCell({ station, onOpenExternal }) {
-  const sourceClick = event => {
-    if (onOpenExternal) { event.preventDefault(); onOpenExternal(station.sourceUrl); }
-  };
-  return <div className="rp-market-station">
-    <a href={station.sourceUrl} target="_blank" rel="noopener noreferrer" onClick={sourceClick}>{station.displayName}</a>
-    <span>{station.name !== station.displayName ? `${station.name} · ` : ''}Market ID {station.id}</span>
-    <span>{station.systemName || 'System unknown'} · {station.type || 'Type unknown'}</span>
-    <span>{station.knownPad ? `${station.knownPad} pad confirmed` : 'Pad unknown'} · {formatNumber(station.arrivalDistanceLs, 0)} ls from arrival</span>
-    <span className="rp-market-age">{formatAge(station.marketAgeHours)}</span>
-    {station.marketUpdatedAt ? <time dateTime={station.marketUpdatedAt} title="Source market timestamp, not scanner refresh time">{station.marketUpdatedAt}</time> : <span>Market timestamp unknown</span>}
-    <span className="rp-market-badges">
-      {station.needsPermit === true && <b>Permit required</b>}
-      {station.needsPermit === null && <b>Permit unknown</b>}
-      {station.isPlanetary === true && <b>Surface landing</b>}
-      {station.hasLargePad === false && <b>No large pad</b>}
-      {station.isCarrier && <b>Carrier can move</b>}
-    </span>
-  </div>;
-}
 
 /**
  * Isolated, read-only-to-the-game trading UI. getToken is supplied by your existing
@@ -110,7 +90,7 @@ export default function MarketPanel({ baseUrl = 'http://127.0.0.1:47856/api/mark
       if (mounted.current) {
         setStatus(current => ({ ...current, settings: result.settings }));
         setDraft(settingsToDraft(result.settings)); setOffset(0); setList('all');
-        setNotice(`${preset.label} saved. Ship and budget inputs are unchanged. Refresh markets if the saved snapshot covers a shorter collection window.`);
+        setNotice('Query saved. Your ship and budget settings are unchanged.');
       }
     });
   }
@@ -118,7 +98,7 @@ export default function MarketPanel({ baseUrl = 'http://127.0.0.1:47856/api/mark
     event.preventDefault();
     await action(async signal => {
       const result = await client.configure(draftToPatch(draft), signal);
-      if (mounted.current) { setDraft(settingsToDraft(result.settings)); setOffset(0); setNotice('Settings saved. Trading filters and budget apply immediately; window changes apply on the next refresh.'); }
+      if (mounted.current) { setStatus(current => ({ ...current, settings: result.settings })); setDraft(settingsToDraft(result.settings)); setOffset(0); setNotice('Settings saved. Trading filters and budget apply immediately; window changes apply on the next refresh.'); }
     });
   }
   async function exportCsv() {
@@ -149,30 +129,19 @@ export default function MarketPanel({ baseUrl = 'http://127.0.0.1:47856/api/mark
 
   return <section className="rp-market" aria-labelledby={`${id}-heading`}>
     <header className="rp-market-header">
-      <div><p className="rp-market-eyebrow">ROUTEPILOT / MARKETS</p><h2 id={`${id}-heading`}>Carrier trading scanner</h2>
-        <p>Buy a carrier's stock and find the highest-paying eligible buyer for all of it.</p></div>
+      <div><p className="rp-market-eyebrow">CARRIER MARKET SCANNER</p><h2 id={`${id}-heading`}>Find your next trade</h2>
+        <p>See what a load earns, where to go, and what it takes to get there.</p></div>
       <div className="rp-market-actions">
-        <button type="button" className="rp-market-primary" disabled={busy || running || !status} onClick={() => action(signal => client.refresh(signal))}>{running ? 'Refresh running' : 'Refresh markets'}</button>
-        <button type="button" disabled={busy || !status?.refresh.canCancel} onClick={() => action(async signal => {
+        <button type="button" className="rp-market-primary" disabled={busy || running || !status} onClick={() => action(signal => client.refresh(signal))}><RefreshCw size={15} aria-hidden="true" />{running ? 'Refreshing…' : 'Refresh markets'}</button>
+        {running && <button type="button" disabled={busy || !status?.refresh.canCancel} onClick={() => action(async signal => {
           const result = await client.cancel(signal); if (mounted.current) setNotice(result.accepted ? 'Cancellation requested. The previous successful report is retained.' : 'No cancellable refresh; an atomic save may already be finishing.');
-        })}>Cancel refresh</button>
-        <button type="button" disabled={busy || !report?.hasReport} onClick={exportCsv}>Export filtered CSV</button>
+        })}>Cancel refresh</button>}
+        <button type="button" className="rp-market-export" disabled={busy || !report?.hasReport} onClick={exportCsv}><ArrowDownToLine size={15} aria-hidden="true" />Export CSV</button>
       </div>
     </header>
 
-    <div className="rp-market-presets" aria-label="Spreadsheet queries">
-      <strong>Saved query: {activePreset?.label || (status ? 'Custom filters' : 'Loading…')}</strong>
-      <div className="rp-market-actions">{Object.entries(SPREADSHEET_PRESETS).map(([key, preset]) =>
-        <button key={key} type="button" aria-pressed={activePreset === preset} disabled={busy || !status} onClick={() => applyPreset(preset)} title={preset.description}>{preset.label}</button>)}</div>
-      <p>Nearby trades: at least 100 t, quotes up to 48 hours old, buyer within 150 ly of the seller. Highest buyers: all lot sizes, quotes up to 8 days old, any distance. Both rank by whole-stock profit.</p>
-      <small>“Nearby” is seller → buyer. Distance from you uses your current game position. All filters below remain editable.</small>
-    </div>
-
-    <div className="rp-market-summary">
-      <div><span>Current system</span><strong>{status?.context.systemName || 'Unknown'}</strong><small>{positionKnown ? status.context.StarPos.map(n => formatNumber(n, 2)).join(', ') : 'StarPos unavailable'}</small></div>
-      <div><span>Last successful collection</span><strong>{timeLabel(status?.report?.collectedAt)}</strong><small>Not the age of the underlying market quotes.</small></div>
-      <div><span>Matching opportunities</span><strong>{report ? formatNumber(report.total) : '—'}</strong><small>No combined profit total: rows can share demand.</small></div>
-      <div><span>Daily service refresh</span><strong>{status?.scheduler.enabled ? `${String(status.scheduler.utcHour).padStart(2, '0')}:00 UTC` : 'Disabled'}</strong><small>{status?.scheduler.enabled ? `Next due: ${timeLabel(status.scheduler.nextRunAt)}` : 'Runs only while the app/service stays open.'}</small></div>
+    <div className="rp-market-location"><MapPin size={15} aria-hidden="true" /><span>From <strong>{status?.context.systemName || 'Unknown location'}</strong></span>
+      <span className="rp-market-collected" title={`Collection time: ${timeLabel(status?.report?.collectedAt)}. Individual quote ages appear on each trade.`}>{status?.report?.collectedAt ? `Snapshot ${formatAge(Math.max(0, (Date.now() - Date.parse(status.report.collectedAt)) / 3_600_000))}` : 'No snapshot yet'}</span>
     </div>
     {running && <div className="rp-market-progress" role="status" aria-live="polite">
       <progress aria-label="Market refresh progress" />
@@ -193,7 +162,14 @@ export default function MarketPanel({ baseUrl = 'http://127.0.0.1:47856/api/mark
     {status?.report?.window && new Date(status.report.window.end) - new Date(status.report.window.start) < status.settings.windowHours * 3_600_000 - 1000 &&
       <p className="rp-market-warning">The saved scan covers fewer than {formatNumber(status.settings.windowHours)} hours. Refresh markets to search the full selected window.</p>}
 
-    {draft && <form onSubmit={save} className="rp-market-settings">
+    <div className="rp-market-presets" aria-label="Spreadsheet queries">
+      <div className="rp-market-preset-buttons">{Object.entries(SPREADSHEET_PRESETS).map(([key, preset]) =>
+        <button key={key} data-preset={key} type="button" aria-pressed={activePreset === preset} disabled={busy || !status} onClick={() => applyPreset(preset)} title={preset.description}>{key === 'nearby' ? 'Short trade routes' : 'Highest buyers'}</button>)}</div>
+      <span>{activePreset ? (activePreset === SPREADSHEET_PRESETS.nearby ? '100 t minimum · 48 h quotes · up to 150 ly between markets' : 'All lot sizes · 8-day quotes · unlimited route distance') : 'Custom query'}<small>Presets from your spreadsheet · distance from you is separate</small></span>
+    </div>
+
+    {draft && <details className="rp-market-settings-shell"><summary><SlidersHorizontal size={17} aria-hidden="true" /><strong>Ship & filters</strong><span>{status.settings.cargoCapacity === null ? 'Cargo unknown' : `${formatNumber(status.settings.cargoCapacity)} t cargo`} · {status.settings.requiredPad === 'any' ? 'Any pad' : `${status.settings.requiredPad} pad`} · {status.settings.maxPlayerDistanceLy === null ? 'Any distance from you' : `Within ${formatNumber(status.settings.maxPlayerDistanceLy)} ly of you`}</span><ChevronDown size={16} aria-hidden="true" /></summary>
+      <form onSubmit={save} className="rp-market-settings">
       <fieldset disabled={busy}><legend>Ship, budget and trading filters</legend><p>Ship and budget are editable planning inputs. Spreadsheet starting values: 16 t cargo, 220M Cr, 20M Cr reserve.</p><div className="rp-market-form-grid">
         {numericField('cargoCapacity', 'Cargo capacity (t)', { nullable: true, hint: 'Empty means unknown, not zero.' })}
         {numericField('credits', 'Available credits (Cr)', { nullable: true })}
@@ -215,8 +191,9 @@ export default function MarketPanel({ baseUrl = 'http://127.0.0.1:47856/api/mark
         <div className="rp-market-field">{checkbox('dailyRefresh', 'Enable daily refresh while running')}<small>Startup catch-up and failure backoff are automatic.</small></div>
       </div></fieldset>
       <div className="rp-market-actions"><button type="submit" disabled={busy}>Apply settings</button><button type="button" disabled={busy || !status} onClick={() => setDraft(settingsToDraft(status.settings))}>Reset unsaved edits</button></div>
-    </form>}
+    </form></details>}
 
+    <div className="rp-market-results-heading"><div><h3>{report ? formatNumber(report.total) : '—'} opportunities</h3><p>Independent quotes. Total profits are conditional and cannot be added together.</p></div></div>
     <div className="rp-market-table-controls">
       <label htmlFor={`${id}-sort`}>Rank by <select id={`${id}-sort`} value={sort} disabled={busy || !status} onChange={event => {
         const defaultSort = event.target.value;
@@ -228,35 +205,19 @@ export default function MarketPanel({ baseUrl = 'http://127.0.0.1:47856/api/mark
         {Object.entries(SORT_LABELS).map(([key, label]) => <option key={key} value={key} disabled={key === 'closestSeller' && !positionKnown}>{label}</option>)}
       </select></label>
       <label htmlFor={`${id}-list`}>Show <select id={`${id}-list`} value={list} onChange={event => { setList(event.target.value); setOffset(0); }}>
-        <option value="all">All eligible opportunities</option><option value="affordable">At least one affordable tonne</option>
+        <option value="all">All opportunities</option><option value="affordable">Can afford at least 1 t</option>
       </select></label>
-      <span>Best eligible buyer = highest quoted sell price, then shortest known route.</span>
+      <span>Buyer selection: highest eligible price, then shortest known route.</span>
     </div>
-    {report?.hasReport && report.rows.length > 0 ? <div className="rp-market-table-wrap" tabIndex={0} role="region" aria-label="Trading opportunities; horizontally scrollable">
-      <table><caption>Independent opportunities; all profits are conditional quotes, not guaranteed or additive.</caption>
-        <thead><tr><th>Commodity / risks</th><th>Total profit for all stock*</th><th>Stock / demand</th><th>Seller</th><th>Best eligible buyer</th><th>Buy / sell</th><th>Profit per tonne</th><th>Me → seller</th><th>Seller → buyer</th><th>Affordable load</th><th>Profit per load</th><th>Trips*</th></tr></thead>
-        <tbody>{report.rows.map(row => <tr key={row.id}>
-          <td><strong>{row.commodity}</strong>{row.potentiallyCorrosive && <b className="rp-market-risk">Potentially corrosive</b>}
-            <details><summary>{row.flags.length} warnings</summary><ul>{row.flags.map(flag => <li key={flag}>{flag.replaceAll(':', ': ').replaceAll('-', ' ')}</li>)}</ul></details></td>
-          <td className="rp-market-number"><strong>{credits(row.fullStockProfit)}</strong><small>{credits(row.fullStockCost)} to buy all stock</small></td>
-          <td className="rp-market-number">{formatNumber(row.stock)} t<small>{formatNumber(row.buyerDemand)} t demand</small></td>
-          <td><StationCell station={row.seller} onOpenExternal={onOpenExternal} /></td><td><StationCell station={row.buyer} onOpenExternal={onOpenExternal} /></td>
-          <td className="rp-market-number">{credits(row.buyPrice)}<small>{credits(row.sellPrice)}</small></td>
-          <td className="rp-market-number"><strong>{credits(row.marginPerTonne)}</strong></td>
-          <td className="rp-market-number">{row.playerToSellerLy === null ? 'Unknown' : `${formatNumber(row.playerToSellerLy, 2)} ly`}</td>
-          <td className="rp-market-number">{row.sellerToBuyerLy === null ? 'Unknown' : `${formatNumber(row.sellerToBuyerLy, 2)} ly`}</td>
-          <td className="rp-market-number">{row.affordableCargoPerTrip === null ? 'Set budget / cargo' : `${formatNumber(row.affordableCargoPerTrip)} t`}<small>{credits(row.costPerLoad)} cost</small></td>
-          <td className="rp-market-number">{credits(row.profitPerLoad)}</td>
-          <td className="rp-market-number">{row.tripsNeeded === null ? 'Not calculable' : formatNumber(row.tripsNeeded)}</td>
-        </tr>)}</tbody>
-      </table>
+    {report?.hasReport && report.rows.length > 0 ? <div className="rp-market-cards" role="region" aria-label="Trading opportunities">
+      {report.rows.map((row, index) => <TradeCard key={row.id} row={row} rank={offset + index + 1} currentSystem={positionKnown ? status.context.systemName : null} requiredPad={status.settings.requiredPad} onOpenExternal={onOpenExternal} />)}
     </div> : <p className="rp-market-empty">{!status ? 'Connecting to the local market service…' : !report?.hasReport ? 'No successful market snapshot yet. Refresh markets to collect data.' : 'No opportunities pass the current filters. No replacement rows have been fabricated.'}</p>}
     {report && <div className="rp-market-pagination">
       <button type="button" disabled={offset === 0} onClick={() => setOffset(value => Math.max(0, value - 100))}>Previous 100</button>
       <span>{report.total ? `${formatNumber(offset + 1)}–${formatNumber(Math.min(offset + report.rows.length, report.total))} of ${formatNumber(report.total)}` : '0 matching rows'}</span>
       <button type="button" disabled={!report.hasMore} onClick={() => setOffset(value => value + 100)}>Next 100</button>
     </div>}
-    <footer className="rp-market-footnotes">
+    <footer className="rp-market-footnotes"><details><summary>How these estimates work & source diagnostics <ChevronDown size={14} aria-hidden="true" /></summary>
       <p><strong>* Not a guaranteed payout.</strong> Full-stock profit assumes every advertised tonne can be bought and sold at the displayed prices. Trades can share the same buyer demand; do not add rows together. Trips use the initial affordable load without assuming reinvested profit.</p>
       <p><strong>Bulk-price risk is unmodeled.</strong> The scanner does not invent a demand threshold or price adjustment. Verify prices, stock, docking permissions, permits, cargo hazards and destination access before buying.</p>
       <p>Distances are straight-line light-years, not a jump route or travel-time estimate. A 0 ly same-system trade may still involve a long supercruise journey. Market timestamps come from the source, independently of the collection time above.</p>
@@ -265,6 +226,7 @@ export default function MarketPanel({ baseUrl = 'http://127.0.0.1:47856/api/mark
         <dl className="rp-market-diagnostics">{Object.entries(report.diagnostics).map(([key, value]) => <div key={key}><dt>{key}</dt><dd>{formatNumber(value)}</dd></div>)}</dl>
       </details>}
       {status?.report && <p>Collected window: {status.report.window?.start} → {status.report.window?.end}. Coverage: reconciled against returned API counts; not an atomic or galaxy-complete snapshot.</p>}
-    </footer>
+      <p>Daily refresh: {status?.scheduler.enabled ? `${String(status.scheduler.utcHour).padStart(2, '0')}:00 UTC · next ${timeLabel(status.scheduler.nextRunAt)}` : 'Disabled'}. Runs while RoutePilot stays open.</p>
+    </details></footer>
   </section>;
 }
