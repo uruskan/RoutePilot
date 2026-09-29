@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { TelemetryReader } from './telemetry.mjs';
 import { EngineController } from './engine.mjs';
 import { MarketService } from '../features/markets/server/markets.mjs';
+import { SPREADSHEET_DEFAULT_SETTINGS } from '../features/markets/presets.mjs';
 import { createMarketRouter, bearerAuthenticator } from '../features/markets/server/market-http.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -30,6 +31,7 @@ export function createRoutePilotServer({ root = ROOT, publicDir = path.join(root
   };
   const engine = new EngineController({ root, engineRoot, spawnWorker, stopProcess, eligibility });
   const markets = new MarketService({ root: marketRoot, fetchImpl: marketFetch, now: marketNow,
+    defaultSettings: SPREADSHEET_DEFAULT_SETTINGS,
     getContext: () => {
       const current = telemetry.snapshot().telemetry;
       return { systemName: current.system, StarPos: current.position ?? null };

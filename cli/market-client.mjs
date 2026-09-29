@@ -87,7 +87,7 @@ export async function runMarketCli(args, options = {}) {
         out(`${report.total} matching lots; showing ${report.rows.length}. Location: ${clean(report.context?.systemName)}.`);
         for (const row of report.rows) {
           out(`${clean(row.commodity)} | ${clean(row.seller.displayName)} (${clean(row.seller.systemName)}) → ${clean(row.buyer.displayName)} (${clean(row.buyer.systemName)})`);
-          out(`  Stock ${num(row.stock)} t | Margin ${num(row.marginPerTonne)} Cr/t | Load profit ${num(row.profitPerLoad)} Cr | To seller ${num(row.playerToSellerLy)} ly | Route ${num(row.sellerToBuyerLy)} ly`);
+          out(`  Stock ${num(row.stock)} t | Full-stock profit ${num(row.fullStockProfit)} Cr | Margin ${num(row.marginPerTonne)} Cr/t | Load profit ${num(row.profitPerLoad)} Cr | To seller ${num(row.playerToSellerLy)} ly | Route ${num(row.sellerToBuyerLy)} ly`);
         }
         out('Reported quotes can change. Full-stock profits are conditional and not additive.');
       }

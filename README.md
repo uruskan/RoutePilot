@@ -113,11 +113,15 @@ Yeni RoutePilot kodu [MIT lisanslıdır](LICENSE). Kullanılan EDAP motorunun ve
 
 ## Ticaret tarayıcısı / Markets
 
-Sol menüde **Ticaret tarayıcısı** açılır. **Refresh markets** ile Spansh'in son 24 saatte güncellenmiş piyasa raporları toplanır; pencere ve yaş sınırı ayarlardan değiştirilebilir. Sayfa sayısı, ilerleme, son başarılı tarama, kaynak zamanı ve hatalar görünür. Başarısız veya iptal edilen tarama son başarılı raporu silmez.
+Sol menüde **Ticaret tarayıcısı** açılır. **Refresh markets** ile Spansh'in son 8 günde güncellenmiş piyasa raporları toplanır; pencere ve yaş sınırı ayarlardan değiştirilebilir. Sayfa sayısı, ilerleme, son başarılı tarama, kaynak zamanı ve hatalar görünür. Başarısız veya iptal edilen tarama son başarılı raporu silmez.
+
+Varsayılan **Nearby trades (spreadsheet)** sorgusu eski çalışma kitabıyla aynıdır: en az **100 t** satıcı stoku, iki piyasa da en fazla **48 saat** eski ve satıcıdan alıcıya en fazla **150 ly**. Alıcının talebi tüm satıcı stokunu karşılamalıdır. Sıralama tüm stokun koşullu toplam kârına, eşitlikte daha kısa rotaya göredir. **Highest buyers (spreadsheet)** ikinci çalışma sayfasının geniş sorgusudur: en az 1 t, en fazla 8 günlük veri ve mesafe sınırı yok. İkisi de tüm stok için en yüksek fiyat veren uygun alıcıyı seçer. Sonuçlar 100 satırlık sayfalarda gösterilir; eski kitabın ilk 200 satırıyla sınırlandırılmaz.
+
+Sorgu düğmeleri ve sıralama seçimi kaydedilir; elle değiştirilen filtreler **Apply settings** ile diske yazılır. Sorgu değiştirmek gemi/bütçe girdilerini değiştirmez. Yeni kurulumda kitabın düzenlenebilir planlama girdileri kullanılır: **16 t**, **220M Cr**, **20M Cr rezerv**; bunlar canlı bakiye/kargo kapasitesi iddiası değildir. Eski kişisel ayarlar açılışta üzerine yazılmaz.
 
 **Closest seller to me** günlükteki gerçek StarPos konumundan satıcıya mesafeyi hesaplar. **Shortest seller → buyer route** iki piyasa arasındaki mesafedir. Konum atlamayla güncellenir; oturum kapalıysa/bilinmiyorsa konuma bağlı sıralama kullanılamaz. Ayrıca kâr/ton, kâr/sefer, toplam stok kârı, mesafe, yaş, stok, iniş pisti ve izin filtreleri vardır. Alıcının talebi satıcının tüm stokunu karşılamalıdır. **Cargo capacity**, **Credits** ve **Credit reserve** elle belirlenen senaryo girdileridir; bilinmeyen değerler tahmin edilmez.
 
-**Daily refresh** tercihini açıp **Save settings** ile kaydedin. Günlük saat UTC'dir (Türkiye saati UTC+3). RoutePilot veya arayüzsüz servisi çalışırken yeniler; kapalıyken çalışmaz, sonraki açılışta kaçırılan yenilemeyi yapar. Tercih başlangıçta kapalıdır. Otomatik yenileme oyuna tuş göndermez.
+**Daily refresh** tercihini açıp **Apply settings** ile kaydedin. Günlük saat UTC'dir (Türkiye saati UTC+3). RoutePilot veya arayüzsüz servisi çalışırken yeniler; kapalıyken çalışmaz, sonraki açılışta kaçırılan yenilemeyi yapar. Tercih başlangıçta kapalıdır. Otomatik yenileme oyuna tuş göndermez.
 
 ```powershell
 .\RoutePilot-CLI.cmd markets --help
@@ -137,3 +141,5 @@ Piyasa verileri `work/markets/` altında saklanır. JSON, ayarlar ve CSV dışa 
 Feature source: `features/markets/` (supplied scanner 1.0.0, integrated with a verified Drake-Class Carrier adapter fix). `npm test` runs both the host integration tests and the supplied scanner suite. No extra runtime dependencies were installed.
 
 Blank screen on switching tabs was fixed on 2026-09-29. Close and reopen RoutePilot using Start-RoutePilot.cmd to load the rebuilt interface. An old running service is now reported with a restart instruction. The invisible renderer regression can be run with the installed Electron executable and scripts/check-desktop-navigation.cjs; it uses synthetic markets and cannot start flight.
+
+An eight-day market cache can take around 20 seconds to read on a cold start. The headless launcher allows up to 60 seconds for readiness. A running service opens the desktop without reloading that cache.

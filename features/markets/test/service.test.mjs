@@ -22,7 +22,8 @@ test('successful refresh atomically persists source and computed reference resul
   const { service, root } = await setup(t);
   const outcome = await service.refresh(); assert.equal(outcome.outcome, 'succeeded');
   const saved = JSON.parse(await readFile(join(root, 'report.json'), 'utf8'));
-  assert.equal(saved.stations.length, 2); assert.equal(saved.opportunities.length, 1); assert.equal(saved.coverage.complete, true);
+  assert.equal(saved.stationSnapshot.count, 2); assert.equal(saved.referenceOpportunityCount, 1); assert.equal(saved.coverage.complete, true);
+  assert.equal(Object.hasOwn(saved, 'stations'), false); assert.equal(Object.hasOwn(saved, 'opportunities'), false);
   assert.equal((await service.results()).total, 1); assert.ok(!(await readdir(root)).some(name => name.includes('.tmp-')));
 });
 test('a failed refresh retains both last successful file bytes and last successful in-memory report', async t => {

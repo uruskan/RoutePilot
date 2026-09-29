@@ -148,7 +148,7 @@ test('launcher rebuilds changed market UI and dependency inputs without launchin
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'routepilot-build-inputs-'));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
   const inputs = ['web/src/main.jsx', 'features/markets/ui/MarketPanel.jsx', 'features/markets/ui/MarketPanel.css',
-    'features/markets/ui/market-client.mjs', 'vite.config.mjs', 'package.json', 'package-lock.json'];
+    'features/markets/ui/market-client.mjs', 'features/markets/presets.mjs', 'vite.config.mjs', 'package.json', 'package-lock.json'];
   const older = new Date('2026-01-01T00:00:00Z'), built = new Date('2026-01-02T00:00:00Z'), newer = new Date('2026-01-03T00:00:00Z');
   for (const file of [...inputs, 'public/index.html']) {
     const target = path.join(directory, file);

@@ -9,6 +9,7 @@ fs.mkdirSync(path.join(root, 'work'), { recursive: true });
 const testRoot = fs.mkdtempSync(path.join(root, 'work', 'navigation-check-'));
 app.setPath('userData', path.join(testRoot, 'desktop'));
 app.disableHardwareAcceleration();
+app.on('window-all-closed', () => {}); // Report assertions before explicitly exiting.
 let window, service, workers = 0;
 const errors = [];
 const timeout = setTimeout(() => { console.error('Navigation test timed out'); app.exit(1); }, 25000);
@@ -25,11 +26,15 @@ async function until(expression) {
 async function run() {
   try {
     const { createRoutePilotServer } = await import(pathToFileURL(path.join(root, 'server/index.mjs')));
-    const { station, buyer, mockApi, NOW, FAST } = await import(pathToFileURL(path.join(root, 'features/markets/test/fixtures/synthetic.mjs')));
+    const { station, buyer, quote, at, mockApi, NOW, FAST } = await import(pathToFileURL(path.join(root, 'features/markets/test/fixtures/synthetic.mjs')));
     service = createRoutePilotServer({ root: testRoot, publicDir: path.join(root, 'public'),
       telemetry: { snapshot: () => ({ telemetry: { system: 'Synthetic origin', position: [0, 0, 0] }, route: {}, checks: [] }) },
       spawnWorker() { workers++; throw new Error('Navigation test must never start flight'); },
-      marketFetch: mockApi([...Array.from({ length: 125 }, (_, i) => station(i + 1)), buyer(999)]), marketNow: () => NOW });
+      marketFetch: mockApi([
+        ...Array.from({ length: 125 }, (_, i) => station(i + 1, { system_x: i, market: [quote({ supply: 200 })] })),
+        station(1001, { system_x: 20_000, market_updated_at: at(-72), market: [quote({ supply: 1 })] }),
+        buyer(999, { system_x: 125 }),
+      ]), marketNow: () => NOW });
     await service.markets.ready;
     await service.markets.configure(FAST);
     assert.equal((await service.markets.refresh()).outcome, 'succeeded');
@@ -43,21 +48,36 @@ async function run() {
     await until(`document.body.innerText.includes('Rotanı seç.')`);
     const scrollReturn = await window.webContents.executeJavaScript(`Object.prototype.toString.call(window.scrollTo({top:0,left:0}))`);
     for (const [label, content] of [
-      ['Ticaret tarayıcısı', 'Synthetic 1'], ['İşlem geçmişi', 'Uçuşun işlem geçmişi'],
+      ['Ticaret tarayıcısı', 'Carrier trading scanner'], ['İşlem geçmişi', 'Uçuşun işlem geçmişi'],
       ['Uçuş tercihleri', 'Uçuş tercihleri'], ['Rota takibi', 'Rotanı seç.'],
-      ['Ticaret tarayıcısı', 'Synthetic 1'],
+      ['Ticaret tarayıcısı', 'Carrier trading scanner'],
     ]) {
       await window.webContents.executeJavaScript(`document.querySelector('[aria-label=${JSON.stringify(label)}]').click()`);
       await until(`document.querySelector('main').innerText.includes(${JSON.stringify(content)})`);
     }
-    assert.equal(await window.webContents.executeJavaScript(`document.querySelectorAll('.rp-market tbody tr').length`), 100);
+    await until(`document.querySelectorAll('.rp-market tbody tr').length === 100`);
+    assert.equal(await window.webContents.executeJavaScript(`document.querySelector('input[id$="-minStock"]').value`), '100');
+    assert.equal(await window.webContents.executeJavaScript(`document.querySelector('select[id$="-sort"]').value`), 'stockProfit');
     await window.webContents.executeJavaScript(`Array.from(document.querySelectorAll('button')).find(b=>b.textContent==='Next 100').click()`);
     await until(`document.querySelectorAll('.rp-market tbody tr').length === 25`);
+    await window.webContents.executeJavaScript(`Array.from(document.querySelectorAll('button')).find(b=>b.textContent==='Highest buyers (spreadsheet)').click()`);
+    await until(`document.querySelector('.rp-market-pagination').innerText.includes('of 126')`);
+    assert.equal((await service.markets.status()).settings.minStock, 1);
+    assert.equal((await service.markets.status()).settings.cargoCapacity, 16);
+    await window.webContents.executeJavaScript(`Array.from(document.querySelectorAll('button')).find(b=>b.textContent==='Nearby trades (spreadsheet)').click()`);
+    await until(`document.querySelector('.rp-market-pagination').innerText.includes('of 125')`);
+    await window.webContents.executeJavaScript(`(() => { const select = document.querySelector('select[id$="-sort"]'); select.value = 'closestSeller'; select.dispatchEvent(new Event('change', {bubbles:true})); })()`);
+    await until(`document.querySelector('.rp-market tbody tr .rp-market-station a').textContent === 'Synthetic 1'`);
+    assert.equal((await service.markets.status()).settings.defaultSort, 'closestSeller');
+    await window.webContents.reload();
+    await until(`document.body.innerText.includes('Rotanı seç.')`);
+    await window.webContents.executeJavaScript(`document.querySelector('[aria-label="Ticaret tarayıcısı"]').click()`);
+    await until(`document.querySelector('select[id$="-sort"]')?.value === 'closestSeller' && document.querySelectorAll('.rp-market tbody tr').length === 100`);
     assert.equal(window.isVisible(), false);
     assert.deepEqual(errors, []);
     assert.equal(workers, 0);
     console.log(JSON.stringify({ passed: true, tabChanges: 5, firstPageRows: 100, secondPageRows: 25,
-      scrollReturn, visibleWindows: 0, flightWorkers: workers }));
+      presetSwitches: 2, rankingSurvivesReload: true, scrollReturn, visibleWindows: 0, flightWorkers: workers }));
   } finally {
     clearTimeout(timeout);
     if (window && !window.isDestroyed()) window.destroy();

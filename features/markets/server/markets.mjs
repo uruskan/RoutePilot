@@ -3,7 +3,9 @@
  * This module never reads game files or sends game input. Its only location source
  * is the injected, read-only getContext callback. See docs/INTEGRATION.md.
  */
-import { mkdir, open, readFile, rename, unlink } from 'node:fs/promises';
+import { mkdir, open, readFile, rename, unlink, lstat } from 'node:fs/promises';
+import { createReadStream } from 'node:fs';
+import { createInterface } from 'node:readline';
 import { resolve, join, dirname } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { performance } from 'node:perf_hooks';
@@ -98,7 +100,7 @@ export function normalizeContext(value) {
 }
 
 export const DEFAULT_SETTINGS = Object.freeze({
-  cargoCapacity: null, credits: null, creditReserve: 0,
+  cargoCapacity: null, credits: null, creditReserve: 0, defaultSort: 'margin',
   windowHours: 24, minStock: 1, maxMarketAgeHours: 24, requiredPad: 'any',
   maxPlayerDistanceLy: null, maxRouteDistanceLy: null,
   allowUnknownPad: false, allowPermitSystems: true, allowPlanetary: true,
@@ -152,6 +154,8 @@ export function validateSettings(patch, base = DEFAULT_SETTINGS) {
       }
     } else if (BOOLEAN_KEYS.has(key)) {
       if (typeof value !== 'boolean') throw new ValidationError(`${key} must be a boolean.`);
+    } else if (key === 'defaultSort' && !SORTS.includes(value)) {
+      throw new ValidationError(`defaultSort must be one of ${SORTS.join(', ')}.`);
     } else if (key === 'requiredPad' && !['any', 'S', 'M', 'L'].includes(value)) {
       throw new ValidationError('requiredPad must be any, S, M or L.');
     }
@@ -168,7 +172,7 @@ function queryOptions(query, settings) {
   const patch = {};
   for (const key of FILTER_KEYS) if (Object.hasOwn(query, key)) patch[key] = query[key];
   const filters = validateSettings(patch, settings);
-  const list = query.list ?? 'all', sort = query.sort ?? 'margin';
+  const list = query.list ?? 'all', sort = query.sort ?? settings.defaultSort;
   const limit = query.limit ?? 100, offset = query.offset ?? 0;
   if (!LISTS.includes(list)) throw new ValidationError(`list must be ${LISTS.join(' or ')}.`);
   if (!SORTS.includes(sort)) throw new ValidationError(`sort must be one of ${SORTS.join(', ')}.`);
@@ -433,7 +437,9 @@ export async function analyzeMarkets(input, { settings = DEFAULT_SETTINGS, query
   }
   checkAbort(signal);
   const [field, descending] = SORT_FIELDS[sort];
-  rows.sort((a, b) => orderNullable(a[field], b[field], descending) || b.marginPerTonne - a.marginPerTonne || a.id.localeCompare(b.id));
+  rows.sort((a, b) => orderNullable(a[field], b[field], descending) ||
+    (sort === 'stockProfit' ? orderNullable(a.sellerToBuyerLy, b.sellerToBuyerLy) : 0) ||
+    b.marginPerTonne - a.marginPerTonne || a.id.localeCompare(b.id));
   return { rows, total: rows.length, list, sort, limit: options.limit, offset: options.offset,
     context: current, filters: Object.fromEntries(FILTER_KEYS.map(key => [key, filters[key]])),
     diagnostics: { ...database.diagnostics, sellerCandidates, comparisons },
@@ -778,6 +784,114 @@ async function readJson(file) {
   try { return JSON.parse(await readFile(file, 'utf8')); }
   catch (error) { if (error.code === 'ENOENT') return null; throw new MarketError('STORAGE', `Cannot read ${file}: ${error.message}`); }
 }
+
+const STATION_SNAPSHOT_FORMAT = 'stations-ndjson-v1';
+const MAX_STATION_LINE_BYTES = 32 * 1024 * 1024;
+const SNAPSHOT_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function stationSnapshotPath(report, directory) {
+  const snapshot = report?.stationSnapshot;
+  if (!snapshot) return null;
+  if (!SNAPSHOT_UUID.test(report.id) || snapshot.format !== STATION_SNAPSHOT_FORMAT ||
+    snapshot.file !== `stations-${report.id}.ndjson` ||
+    !Number.isSafeInteger(snapshot.count) || snapshot.count < 0) {
+    throw new MarketError('STORAGE', 'Invalid station snapshot reference in report.json.');
+  }
+  return join(directory, snapshot.file);
+}
+
+/** Stream stations individually, then atomically publish the small manifest.
+ * Readers always see a complete old or new snapshot. No whole-report JSON
+ * string is constructed, and failed candidates never replace the old report.
+ */
+export async function atomicWriteReport(file, report, stations, { signal, previousReport,
+  onCommit = () => {}, writeManifest = atomicWriteJson } = {}) {
+  if (!SNAPSHOT_UUID.test(report?.id) || !Array.isArray(stations) || previousReport?.id === report.id) {
+    throw new MarketError('STORAGE', 'A new UUID and station array are required for a report snapshot.');
+  }
+  const { stations: ignoredStations, opportunities: ignoredOpportunities, ...metadata } = report;
+  const manifest = { ...metadata, stationSnapshot: { format: STATION_SNAPSHOT_FORMAT,
+    file: `stations-${report.id}.ndjson`, count: stations.length } };
+  const target = stationSnapshotPath(manifest, dirname(file));
+  const temporary = `${target}.tmp-${process.pid}-${randomUUID()}`;
+  let handle, candidatePublished = false, committed = false;
+  try {
+    checkAbort(signal);
+    await mkdir(dirname(file), { recursive: true });
+    try {
+      await lstat(target);
+      throw new MarketError('STORAGE', 'The candidate station snapshot already exists; refusing to replace it.');
+    } catch (error) { if (error.code !== 'ENOENT') throw error; }
+    handle = await open(temporary, 'wx', 0o600);
+    for (const station of stations) {
+      checkAbort(signal);
+      const line = JSON.stringify(compactStation(station));
+      if (Buffer.byteLength(line, 'utf8') > MAX_STATION_LINE_BYTES) throw new MarketError('STORAGE', 'A station snapshot record exceeds the safe line size.');
+      await handle.writeFile(`${line}\n`, 'utf8');
+    }
+    await handle.sync(); await handle.close(); handle = null;
+    checkAbort(signal);
+    await rename(temporary, target); candidatePublished = true;
+    checkAbort(signal);
+    // Only the tiny manifest commit is non-cancellable.
+    onCommit();
+    await writeManifest(file, manifest); committed = true;
+  } finally {
+    if (handle) await handle.close().catch(() => {});
+    await unlink(temporary).catch(() => {});
+    if (candidatePublished && !committed) await unlink(target).catch(() => {});
+  }
+  // Delete only the exact previous file owned by this valid report reference.
+  // A cleanup failure must not turn an already committed report into a failure.
+  try {
+    const previous = stationSnapshotPath(previousReport, dirname(file));
+    if (previous && previous !== target) await unlink(previous);
+  } catch {}
+  return manifest;
+}
+
+async function readStationSnapshot(file, expectedCount) {
+  const stream = createReadStream(file, { encoding: 'utf8' });
+  const lines = createInterface({ input: stream, crlfDelay: Infinity });
+  let inputError;
+  stream.on('error', error => { inputError = error; lines.close(); });
+  const stations = [];
+  try {
+    for await (const line of lines) {
+      if (!line || Buffer.byteLength(line, 'utf8') > MAX_STATION_LINE_BYTES) throw new MarketError('STORAGE', 'Invalid station snapshot line.');
+      const value = JSON.parse(line);
+      if (!record(value) || !marketId(value.market_id) || !Array.isArray(value.market)) throw new MarketError('STORAGE', 'Malformed station snapshot record.');
+      stations.push(value);
+      if (stations.length > expectedCount) throw new MarketError('STORAGE', 'Station snapshot record count exceeds its manifest.');
+    }
+    if (inputError) throw inputError;
+    if (stations.length !== expectedCount) throw new MarketError('STORAGE', 'Station snapshot record count does not match its manifest.');
+    return stations;
+  } finally { lines.close(); stream.destroy(); }
+}
+
+export async function readMarketReport(file) {
+  let report = await readJson(file);
+  for (let attempt = 0; report !== null; attempt++) {
+    if (report.schemaVersion !== SCHEMA_VERSION || timestampMs(report.collectedAt) === null ||
+      report.coverage?.complete !== true || !text(report.id)) throw new MarketError('STORAGE', 'Unsupported or malformed report.json.');
+    if (!report.stationSnapshot) {
+      if (!Array.isArray(report.stations)) throw new MarketError('STORAGE', 'Report has no station snapshot.');
+      return report; // Compatibility with the original single JSON report.
+    }
+    const source = stationSnapshotPath(report, dirname(file));
+    try { return { ...report, stations: await readStationSnapshot(source, report.stationSnapshot.count) }; }
+    catch (error) {
+      // A read-only process may have read the old manifest just before the
+      // writer committed and removed its old station file. Retry the new one.
+      if (error.code === 'ENOENT' && attempt === 0) {
+        const latest = await readJson(file);
+        if (latest && latest.id !== report.id) { report = latest; continue; }
+      }
+      throw new MarketError('STORAGE', `Cannot load station snapshot: ${error.message}`);
+    }
+  }
+  return null;
+}
 const EMPTY_SCHEDULE = { lastAttemptAt: null, lastOutcome: null, failureCount: 0, nextRetryAt: null };
 
 /** Latest elapsed UTC deadline. A manual success also satisfies the elapsed deadline. */
@@ -794,17 +908,18 @@ export function nextDailyRun({ nowMs, lastSuccessAt, settings, nextRetryAt = nul
 export class MarketService {
   /** timers is an optional scheduler-only clock seam for deterministic tests. */
   constructor({ root, fetchImpl = globalThis.fetch, now = Date.now, getContext = () => null,
-    readOnly = false, timers = { setTimeout, clearTimeout } } = {}) {
+    readOnly = false, timers = { setTimeout, clearTimeout }, defaultSettings = DEFAULT_SETTINGS } = {}) {
     if (typeof root !== 'string' || !root.trim()) throw new ValidationError('A scanner-specific storage root is required.');
     if (typeof fetchImpl !== 'function' || typeof now !== 'function' || typeof getContext !== 'function') throw new ValidationError('fetchImpl, now and getContext must be functions.');
     if (typeof readOnly !== 'boolean') throw new ValidationError('readOnly must be a boolean.');
+    this._defaultSettings = validateSettings(defaultSettings);
     this.root = resolve(root);
     this._fetch = fetchImpl; this._now = now; this._getContext = getContext;
     this._readOnly = readOnly; this._timers = timers;
     this._stateFile = join(this.root, 'state.json');
     this._reportFile = join(this.root, 'report.json');
     this._lockFile = join(this.root, '.routepilot-markets.lock');
-    this._state = { schemaVersion: SCHEMA_VERSION, settings: clone(DEFAULT_SETTINGS), schedule: clone(EMPTY_SCHEDULE), lastAttempt: null };
+    this._state = { schemaVersion: SCHEMA_VERSION, settings: clone(this._defaultSettings), schedule: clone(EMPTY_SCHEDULE), lastAttempt: null };
     this._stateQueue = Promise.resolve(); this._snapshot = null; this._database = null;
     this._run = null; this._closed = false; this._schedulerStarted = false;
     this._timer = null; this._keepSchedulerAlive = false; this._lockToken = null;
@@ -853,7 +968,7 @@ export class MarketService {
       const saved = await readJson(this._stateFile);
       if (saved !== null) {
         if (saved.schemaVersion !== SCHEMA_VERSION || !record(saved.settings) || !record(saved.schedule)) throw new MarketError('STORAGE', 'Unsupported or malformed state.json. No existing state was overwritten.');
-        this._state = { schemaVersion: SCHEMA_VERSION, settings: validateSettings(saved.settings),
+        this._state = { schemaVersion: SCHEMA_VERSION, settings: validateSettings(saved.settings, this._defaultSettings),
           schedule: { ...EMPTY_SCHEDULE, ...saved.schedule }, lastAttempt: saved.lastAttempt || null };
         const schedule = this._state.schedule;
         if (!Number.isSafeInteger(schedule.failureCount) || schedule.failureCount < 0 ||
@@ -863,12 +978,8 @@ export class MarketService {
         }
       }
       try {
-        const savedReport = await readJson(this._reportFile);
+        const savedReport = await readMarketReport(this._reportFile);
         if (savedReport !== null) {
-          if (savedReport.schemaVersion !== SCHEMA_VERSION || !Array.isArray(savedReport.stations) ||
-            timestampMs(savedReport.collectedAt) === null || savedReport.coverage?.complete !== true || !text(savedReport.id)) {
-            throw new MarketError('STORAGE', 'Unsupported or malformed report.json.');
-          }
           this._database = await prepareMarkets(savedReport.stations);
           this._snapshot = this._reportMetadata(savedReport);
         }
@@ -996,20 +1107,22 @@ export class MarketService {
       const context = await this._context();
       // Collection can succeed while the player is absent. Location-dependent result requests still reject explicitly.
       const reference = await analyzeMarkets(database, { prepared: true, settings: runSettings,
-        query: { maxPlayerDistanceLy: context.positionAvailable ? runSettings.maxPlayerDistanceLy : null },
+        query: { maxPlayerDistanceLy: context.positionAvailable ? runSettings.maxPlayerDistanceLy : null,
+          sort: !context.positionAvailable && runSettings.defaultSort === 'closestSeller' ? 'margin' : runSettings.defaultSort },
         context, now: clockMs(this._now), signal: run.controller.signal });
       checkAbort(run.controller.signal);
       const report = { schemaVersion: SCHEMA_VERSION, id: run.id,
         scanStartedAt: run.startedAt, collectedAt: iso(clockMs(this._now)),
         source: 'Spansh station market search', window: collected.window, coverage: collected.coverage,
         referenceOpportunityCount: reference.total, diagnostics: database.diagnostics,
-        stations: collected.stations, opportunities: reference.rows,
         analysisAtRefresh: { evaluatedAt: reference.evaluatedAt, filters: reference.filters,
           context: reference.context, note: 'Reference only. Public results always recompute current ages, context, filters and budget.' } };
-      // After this boundary cancel() returns false: the tiny atomic commit must finish.
-      run.canCancel = false; run.progress.phase = 'committing';
-      await atomicWriteJson(this._reportFile, report);
-      this._database = database; this._snapshot = this._reportMetadata(report); committed = true;
+      run.progress.phase = 'saving';
+      const manifest = await atomicWriteReport(this._reportFile, report, collected.stations, {
+        signal: run.controller.signal, previousReport: this._snapshot,
+        onCommit: () => { run.canCancel = false; run.progress.phase = 'committing'; },
+      });
+      this._database = database; this._snapshot = this._reportMetadata(manifest); committed = true;
       outcome = { outcome: 'succeeded', id: run.id, report: clone(this._snapshot) };
       try {
         await this._mutateState(next => {

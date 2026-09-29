@@ -24,7 +24,15 @@ test('market HTTP/CLI use shared auth, current location, full CSV and persisted 
   assert.equal((await fetch(`${base}/api/markets/status`)).status, 401);
   assert.equal((await fetch(`${base}/api/markets/status`, { headers: { ...headers, Origin: 'https://other.example' } })).status, 403);
   assert.equal((await fetch(`${base}/api/markets/refresh`, { headers })).status, 405);
-  const settings = { ...FAST, cargoCapacity: 1232, credits: 220000000, creditReserve: 20000000 };
+  const initial = await app.markets.status();
+  assert.equal(initial.settings.minStock, 100);
+  assert.equal(initial.settings.maxMarketAgeHours, 48);
+  assert.equal(initial.settings.maxRouteDistanceLy, 150);
+  assert.equal(initial.settings.windowHours, 192);
+  assert.equal(initial.settings.defaultSort, 'stockProfit');
+  // This pagination fixture deliberately includes tiny, far-away lots.
+  const settings = { ...FAST, minStock: 1, maxRouteDistanceLy: null,
+    cargoCapacity: 1232, credits: 220000000, creditReserve: 20000000 };
   assert.equal((await fetch(`${base}/api/markets/settings`, { method: 'POST', headers, body: JSON.stringify(settings) })).status, 200);
   const out = [], err = [], cli = { baseUrl: base, out: value => out.push(value), err: value => err.push(value), pollMs: 1 };
   assert.equal(await runCli(['markets', 'refresh'], cli), 0, err.join('\n'));

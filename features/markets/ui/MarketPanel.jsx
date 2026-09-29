@@ -1,6 +1,7 @@
 import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { createMarketClient, settingsToDraft, draftToPatch, formatNumber, formatAge } from './market-client.mjs';
 import './MarketPanel.css';
+import { SPREADSHEET_PRESETS } from '../presets.mjs';
 
 const SORT_LABELS = {
   closestSeller: 'Closest seller to me', shortestRoute: 'Shortest seller → buyer route',
@@ -41,7 +42,11 @@ export default function MarketPanel({ baseUrl = 'http://127.0.0.1:47856/api/mark
   const id = useId();
   const client = useMemo(() => createMarketClient({ baseUrl, getToken, fetchImpl }), [baseUrl, getToken, fetchImpl]);
   const [status, setStatus] = useState(null), [report, setReport] = useState(null);
-  const [draft, setDraft] = useState(null), [sort, setSort] = useState('margin'), [list, setList] = useState('all');
+  const [draft, setDraft] = useState(null), [list, setList] = useState('all');
+  const savedSort = status?.settings.defaultSort || 'stockProfit';
+  const sort = savedSort === 'closestSeller' && !status?.context.positionAvailable ? 'stockProfit' : savedSort;
+  const activePreset = status && Object.values(SPREADSHEET_PRESETS).find(preset =>
+    Object.entries(preset.settings).every(([key, value]) => (key === 'defaultSort' ? savedSort : status.settings[key]) === value));
   const [offset, setOffset] = useState(0), [revision, setRevision] = useState(0);
   const [readError, setReadError] = useState(''), [actionError, setActionError] = useState('');
   const [busy, setBusy] = useState(false), [notice, setNotice] = useState('');
@@ -70,8 +75,8 @@ export default function MarketPanel({ baseUrl = 'http://127.0.0.1:47856/api/mark
         if (!next?.settings || !next?.refresh || !next?.context) throw new Error('Invalid market status response.');
         setStatus(next); setDraft(current => current ?? settingsToDraft(next.settings));
         running = next.refresh.running;
-        const currentSort = !next.context.positionAvailable && sort === 'closestSeller' ? 'margin' : sort;
-        if (currentSort !== sort) { setSort(currentSort); setNotice('Current position was lost. Ranking changed to highest profit per tonne.'); }
+        const preferredSort = next.settings.defaultSort || 'stockProfit';
+        const currentSort = !next.context.positionAvailable && preferredSort === 'closestSeller' ? 'stockProfit' : preferredSort;
         const query = { sort: currentSort, list, limit: 100, offset,
           ...(next.context.positionAvailable ? {} : { maxPlayerDistanceLy: null }) };
         const results = await client.results(query, controller.signal);
@@ -99,6 +104,16 @@ export default function MarketPanel({ baseUrl = 'http://127.0.0.1:47856/api/mark
     finally { actions.current.delete(controller); if (mounted.current) setBusy(false); }
   }
   function setField(key, value) { setDraft(current => ({ ...current, [key]: value })); }
+  async function applyPreset(preset) {
+    await action(async signal => {
+      const result = await client.configure(preset.settings, signal);
+      if (mounted.current) {
+        setStatus(current => ({ ...current, settings: result.settings }));
+        setDraft(settingsToDraft(result.settings)); setOffset(0); setList('all');
+        setNotice(`${preset.label} saved. Ship and budget inputs are unchanged. Refresh markets if the saved snapshot covers a shorter collection window.`);
+      }
+    });
+  }
   async function save(event) {
     event.preventDefault();
     await action(async signal => {
@@ -135,7 +150,7 @@ export default function MarketPanel({ baseUrl = 'http://127.0.0.1:47856/api/mark
   return <section className="rp-market" aria-labelledby={`${id}-heading`}>
     <header className="rp-market-header">
       <div><p className="rp-market-eyebrow">ROUTEPILOT / MARKETS</p><h2 id={`${id}-heading`}>Carrier trading scanner</h2>
-        <p>Public carrier sellers → eligible station or public carrier buyers.</p></div>
+        <p>Buy a carrier's stock and find the highest-paying eligible buyer for all of it.</p></div>
       <div className="rp-market-actions">
         <button type="button" className="rp-market-primary" disabled={busy || running || !status} onClick={() => action(signal => client.refresh(signal))}>{running ? 'Refresh running' : 'Refresh markets'}</button>
         <button type="button" disabled={busy || !status?.refresh.canCancel} onClick={() => action(async signal => {
@@ -144,6 +159,14 @@ export default function MarketPanel({ baseUrl = 'http://127.0.0.1:47856/api/mark
         <button type="button" disabled={busy || !report?.hasReport} onClick={exportCsv}>Export filtered CSV</button>
       </div>
     </header>
+
+    <div className="rp-market-presets" aria-label="Spreadsheet queries">
+      <strong>Saved query: {activePreset?.label || (status ? 'Custom filters' : 'Loading…')}</strong>
+      <div className="rp-market-actions">{Object.entries(SPREADSHEET_PRESETS).map(([key, preset]) =>
+        <button key={key} type="button" aria-pressed={activePreset === preset} disabled={busy || !status} onClick={() => applyPreset(preset)} title={preset.description}>{preset.label}</button>)}</div>
+      <p>Nearby trades: at least 100 t, quotes up to 48 hours old, buyer within 150 ly of the seller. Highest buyers: all lot sizes, quotes up to 8 days old, any distance. Both rank by whole-stock profit.</p>
+      <small>“Nearby” is seller → buyer. Distance from you uses your current game position. All filters below remain editable.</small>
+    </div>
 
     <div className="rp-market-summary">
       <div><span>Current system</span><strong>{status?.context.systemName || 'Unknown'}</strong><small>{positionKnown ? status.context.StarPos.map(n => formatNumber(n, 2)).join(', ') : 'StarPos unavailable'}</small></div>
@@ -167,13 +190,15 @@ export default function MarketPanel({ baseUrl = 'http://127.0.0.1:47856/api/mark
     {!positionKnown && <p className="rp-market-warning">{status?.context.warning || 'Current position is unknown.'} Closest-seller ranking is disabled. A saved distance-from-me limit is inactive until valid StarPos is available. Seller → buyer distance still works when both markets have coordinates.</p>}
     {status?.scheduler.enabled && !status.scheduler.started && <p className="rp-market-warning">Daily refresh is enabled, but the host has not called startScheduler().</p>}
     {status?.warnings.map((warning, index) => <p className="rp-market-warning" key={index}>{warning}</p>)}
+    {status?.report?.window && new Date(status.report.window.end) - new Date(status.report.window.start) < status.settings.windowHours * 3_600_000 - 1000 &&
+      <p className="rp-market-warning">The saved scan covers fewer than {formatNumber(status.settings.windowHours)} hours. Refresh markets to search the full selected window.</p>}
 
     {draft && <form onSubmit={save} className="rp-market-settings">
-      <fieldset disabled={busy}><legend>Ship, budget and trading filters</legend><div className="rp-market-form-grid">
+      <fieldset disabled={busy}><legend>Ship, budget and trading filters</legend><p>Ship and budget are editable planning inputs. Spreadsheet starting values: 16 t cargo, 220M Cr, 20M Cr reserve.</p><div className="rp-market-form-grid">
         {numericField('cargoCapacity', 'Cargo capacity (t)', { nullable: true, hint: 'Empty means unknown, not zero.' })}
         {numericField('credits', 'Available credits (Cr)', { nullable: true })}
         {numericField('creditReserve', 'Protected reserve (Cr)')}
-        {numericField('minStock', 'Minimum seller stock (t)', { min: 1 })}
+        {numericField('minStock', 'Minimum seller stock (t)', { min: 1, hint: 'The buyer must also have demand for ALL seller stock.' })}
         {numericField('maxPlayerDistanceLy', 'Maximum distance from me (ly)', { nullable: true, step: 'any', disabled: !positionKnown, hint: 'Player → seller only.' })}
         {numericField('maxRouteDistanceLy', 'Maximum market route (ly)', { nullable: true, step: 'any', hint: 'Seller → buyer only.' })}
         {numericField('maxMarketAgeHours', 'Maximum market age (hours)', { nullable: true, step: 'any', hint: 'Both endpoints; blank includes unknown/stale quotes.' })}
@@ -193,7 +218,13 @@ export default function MarketPanel({ baseUrl = 'http://127.0.0.1:47856/api/mark
     </form>}
 
     <div className="rp-market-table-controls">
-      <label htmlFor={`${id}-sort`}>Rank by <select id={`${id}-sort`} value={sort} onChange={event => { setSort(event.target.value); setOffset(0); }}>
+      <label htmlFor={`${id}-sort`}>Rank by <select id={`${id}-sort`} value={sort} disabled={busy || !status} onChange={event => {
+        const defaultSort = event.target.value;
+        action(async signal => {
+          const result = await client.configure({ defaultSort }, signal);
+          if (mounted.current) { setStatus(current => ({ ...current, settings: result.settings })); setOffset(0); }
+        });
+      }}>
         {Object.entries(SORT_LABELS).map(([key, label]) => <option key={key} value={key} disabled={key === 'closestSeller' && !positionKnown}>{label}</option>)}
       </select></label>
       <label htmlFor={`${id}-list`}>Show <select id={`${id}-list`} value={list} onChange={event => { setList(event.target.value); setOffset(0); }}>
@@ -203,19 +234,19 @@ export default function MarketPanel({ baseUrl = 'http://127.0.0.1:47856/api/mark
     </div>
     {report?.hasReport && report.rows.length > 0 ? <div className="rp-market-table-wrap" tabIndex={0} role="region" aria-label="Trading opportunities; horizontally scrollable">
       <table><caption>Independent opportunities; all profits are conditional quotes, not guaranteed or additive.</caption>
-        <thead><tr><th>Commodity / risks</th><th>Seller</th><th>Best eligible buyer</th><th>Buy / sell</th><th>Profit per tonne</th><th>Stock / demand</th><th>Me → seller</th><th>Seller → buyer</th><th>Affordable load</th><th>Profit per load</th><th>Full-stock profit*</th><th>Trips*</th></tr></thead>
+        <thead><tr><th>Commodity / risks</th><th>Total profit for all stock*</th><th>Stock / demand</th><th>Seller</th><th>Best eligible buyer</th><th>Buy / sell</th><th>Profit per tonne</th><th>Me → seller</th><th>Seller → buyer</th><th>Affordable load</th><th>Profit per load</th><th>Trips*</th></tr></thead>
         <tbody>{report.rows.map(row => <tr key={row.id}>
           <td><strong>{row.commodity}</strong>{row.potentiallyCorrosive && <b className="rp-market-risk">Potentially corrosive</b>}
             <details><summary>{row.flags.length} warnings</summary><ul>{row.flags.map(flag => <li key={flag}>{flag.replaceAll(':', ': ').replaceAll('-', ' ')}</li>)}</ul></details></td>
+          <td className="rp-market-number"><strong>{credits(row.fullStockProfit)}</strong><small>{credits(row.fullStockCost)} to buy all stock</small></td>
+          <td className="rp-market-number">{formatNumber(row.stock)} t<small>{formatNumber(row.buyerDemand)} t demand</small></td>
           <td><StationCell station={row.seller} onOpenExternal={onOpenExternal} /></td><td><StationCell station={row.buyer} onOpenExternal={onOpenExternal} /></td>
           <td className="rp-market-number">{credits(row.buyPrice)}<small>{credits(row.sellPrice)}</small></td>
           <td className="rp-market-number"><strong>{credits(row.marginPerTonne)}</strong></td>
-          <td className="rp-market-number">{formatNumber(row.stock)} t<small>{formatNumber(row.buyerDemand)} t demand</small></td>
           <td className="rp-market-number">{row.playerToSellerLy === null ? 'Unknown' : `${formatNumber(row.playerToSellerLy, 2)} ly`}</td>
           <td className="rp-market-number">{row.sellerToBuyerLy === null ? 'Unknown' : `${formatNumber(row.sellerToBuyerLy, 2)} ly`}</td>
           <td className="rp-market-number">{row.affordableCargoPerTrip === null ? 'Set budget / cargo' : `${formatNumber(row.affordableCargoPerTrip)} t`}<small>{credits(row.costPerLoad)} cost</small></td>
           <td className="rp-market-number">{credits(row.profitPerLoad)}</td>
-          <td className="rp-market-number">{credits(row.fullStockProfit)}<small>{credits(row.fullStockCost)} total purchase spend</small></td>
           <td className="rp-market-number">{row.tripsNeeded === null ? 'Not calculable' : formatNumber(row.tripsNeeded)}</td>
         </tr>)}</tbody>
       </table>

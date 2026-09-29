@@ -1,4 +1,4 @@
-﻿param([Alias('NoBrowser')][switch]$Headless)
+param([Alias('NoBrowser')][switch]$Headless)
 $ErrorActionPreference = 'Stop'
 $appRoot = $PSScriptRoot
 $appUrl = 'http://127.0.0.1:47856'
@@ -22,7 +22,7 @@ try {
     # The market panel lives outside web/ but is part of the renderer bundle.
     $buildInputs = @(
         Get-ChildItem -LiteralPath 'web', 'features/markets/ui' -File -Recurse
-        Get-Item -LiteralPath 'vite.config.mjs', 'package.json', 'package-lock.json'
+        Get-Item -LiteralPath 'features/markets/presets.mjs', 'vite.config.mjs', 'package.json', 'package-lock.json'
     )
     $newest = $buildInputs | Sort-Object LastWriteTimeUtc -Descending | Select-Object -First 1
     if (-not $index -or $newest.LastWriteTimeUtc -gt $index.LastWriteTimeUtc) {
@@ -43,7 +43,7 @@ try {
     if (-not $health) {
         $server = Start-Process -FilePath $node -ArgumentList 'server/index.mjs' -WorkingDirectory $appRoot -WindowStyle Hidden -RedirectStandardOutput (Join-Path $appRoot "work/server-$stamp.log") -RedirectStandardError (Join-Path $appRoot "work/server-$stamp.err.log") -PassThru
         $server.Id | Set-Content -LiteralPath (Join-Path $appRoot 'work/server.pid')
-        $deadline = [DateTime]::UtcNow.AddSeconds(15)
+        $deadline = [DateTime]::UtcNow.AddSeconds(60)
         do {
             Start-Sleep -Milliseconds 250
             try { $health = Invoke-RestMethod "$appUrl/api/health" -TimeoutSec 1 } catch {}
