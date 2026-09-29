@@ -40,6 +40,9 @@ export function createMarketClient({ baseUrl = 'http://127.0.0.1:47856/api/marke
         if (!response.ok) {
           let payload;
           try { payload = await response.json(); } catch {}
+          if (response.status === 404 && path === '/status') {
+            throw new MarketClientError('SERVICE_OUTDATED', 'Çalışan RoutePilot servisi ticaret tarayıcısını içermiyor. RoutePilot uygulamasını tamamen kapatıp Start-RoutePilot.cmd ile yeniden açın.', 404);
+          }
           throw new MarketClientError(payload?.error?.code || 'HTTP', payload?.error?.message || `Market service returned HTTP ${response.status}.`, response.status);
         }
         if (csv) return response.blob();

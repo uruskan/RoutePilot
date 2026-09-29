@@ -19,9 +19,13 @@ try {
         if ($LASTEXITCODE -ne 0) { throw 'Masaüstü çalışma ortamı indirilemedi.' }
     }
     $index = Get-Item 'public/index.html' -ErrorAction SilentlyContinue
-    $newest = Get-ChildItem -LiteralPath 'web' -File -Recurse | Sort-Object LastWriteTimeUtc -Descending | Select-Object -First 1
-    $config = Get-Item 'vite.config.mjs'
-    if (-not $index -or $newest.LastWriteTimeUtc -gt $index.LastWriteTimeUtc -or $config.LastWriteTimeUtc -gt $index.LastWriteTimeUtc) {
+    # The market panel lives outside web/ but is part of the renderer bundle.
+    $buildInputs = @(
+        Get-ChildItem -LiteralPath 'web', 'features/markets/ui' -File -Recurse
+        Get-Item -LiteralPath 'vite.config.mjs', 'package.json', 'package-lock.json'
+    )
+    $newest = $buildInputs | Sort-Object LastWriteTimeUtc -Descending | Select-Object -First 1
+    if (-not $index -or $newest.LastWriteTimeUtc -gt $index.LastWriteTimeUtc) {
         & $node 'node_modules/vite/bin/vite.js' build
         if ($LASTEXITCODE -ne 0) { throw 'Arayüz derlenemedi.' }
     }

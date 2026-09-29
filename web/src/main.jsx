@@ -73,7 +73,7 @@ function usePilot() {
 function App() {
   const { data, error, busy, command } = usePilot();
   const [tab, setTab] = useState('route');
-  useEffect(() => window.scrollTo({ top: 0, left: 0 }), [tab]);
+  useEffect(() => { window.scrollTo({ top: 0, left: 0 }); }, [tab]);
   const [filter, setFilter] = useState('all');
   const [details, setDetails] = useState(false);
   const [toast, setToast] = useState(null);

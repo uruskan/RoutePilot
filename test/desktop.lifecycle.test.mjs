@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+import os from 'node:os';
+import { spawnSync } from 'node:child_process';
 import { EventEmitter } from 'node:events';
 
 // Run the real entry lifecycle with fake Electron/network dependencies. The
@@ -133,4 +135,42 @@ test('failed external session validation does not authorize shutdown', async () 
   assert.equal(state.windows.length, 0);
   assert.equal(state.quits, 1);
   assert.equal(state.requests.filter(({ options }) => options.method === 'POST').length, 0);
+});
+
+test('launcher rebuilds changed market UI and dependency inputs without launching the app', { skip: process.platform !== 'win32' }, (t) => {
+  const launcher = fs.readFileSync(new URL('../Start-RoutePilot.ps1', import.meta.url), 'utf8');
+  // Execute only the real freshness decision; replace the build command with a
+  // harmless function. No package install, Electron or service can run here.
+  const start = launcher.indexOf("    $index = Get-Item 'public/index.html'");
+  const end = launcher.indexOf("    New-Item -ItemType Directory", start);
+  assert.ok(start >= 0 && end > start, 'launcher build decision is available');
+  const decision = launcher.slice(start, end);
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'routepilot-build-inputs-'));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const inputs = ['web/src/main.jsx', 'features/markets/ui/MarketPanel.jsx', 'features/markets/ui/MarketPanel.css',
+    'features/markets/ui/market-client.mjs', 'vite.config.mjs', 'package.json', 'package-lock.json'];
+  const older = new Date('2026-01-01T00:00:00Z'), built = new Date('2026-01-02T00:00:00Z'), newer = new Date('2026-01-03T00:00:00Z');
+  for (const file of [...inputs, 'public/index.html']) {
+    const target = path.join(directory, file);
+    fs.mkdirSync(path.dirname(target), { recursive: true }); fs.writeFileSync(target, 'fixture');
+    fs.utimesSync(target, older, older);
+  }
+  const output = path.join(directory, 'public/index.html');
+  fs.utimesSync(output, built, built);
+  const script = `$ErrorActionPreference = 'Stop'\nfunction Invoke-TestBuild { $global:LASTEXITCODE = 0; Write-Output 'BUILD' }\n$node = 'Invoke-TestBuild'\n${decision}`;
+  const encoded = Buffer.from(script, 'utf16le').toString('base64');
+  const needsBuild = () => {
+    const result = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-EncodedCommand', encoded],
+      { cwd: directory, encoding: 'utf8', windowsHide: true, timeout: 15000 });
+    assert.equal(result.status, 0, result.stderr || result.error?.message);
+    return result.stdout.trim() === 'BUILD';
+  };
+  assert.equal(needsBuild(), false, 'up-to-date bundle is retained');
+  for (const file of inputs) {
+    const target = path.join(directory, file); fs.utimesSync(target, newer, newer);
+    assert.equal(needsBuild(), true, `${file} invalidates the bundle`);
+    fs.utimesSync(target, older, older);
+  }
+  fs.rmSync(output);
+  assert.equal(needsBuild(), true, 'missing bundle is built');
 });

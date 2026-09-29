@@ -135,3 +135,5 @@ CLI aynı çalışan servisi kullanır; ayrıca motor veya ikinci tarayıcı ba�
 Piyasa verileri `work/markets/` altında saklanır. JSON, ayarlar ve CSV dışa aktarımı desteklenir; eski XLSX dosyası bu sürümde yenilenmez. CSV tüm filtrelenmiş sonuçları içerir, sadece görünen 100 satırı değil. Kaynak bağlantıları yalnızca tıklandığında varsayılan tarayıcıda açılır. Spansh kamuya açık oyuncu raporlarını sağlar; fiyatlar/stoklar canlı garanti veya rezervasyon değildir. Fırsatlar aynı alıcı talebini paylaşabilir, toplam kârları toplanmamalıdır.
 
 Feature source: `features/markets/` (supplied scanner 1.0.0, integrated with a verified Drake-Class Carrier adapter fix). `npm test` runs both the host integration tests and the supplied scanner suite. No extra runtime dependencies were installed.
+
+Blank screen on switching tabs was fixed on 2026-09-29. Close and reopen RoutePilot using Start-RoutePilot.cmd to load the rebuilt interface. An old running service is now reported with a restart instruction. The invisible renderer regression can be run with the installed Electron executable and scripts/check-desktop-navigation.cjs; it uses synthetic markets and cannot start flight.

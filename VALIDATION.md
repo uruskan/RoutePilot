@@ -35,3 +35,13 @@ Integrated supplied RoutePilot-Market-Scanner-1.0.0 source under features/market
 - Saved report/settings/CSV: ignored work/markets/. Evidence: work/market-live-acceptance.json and work/market-live-acceptance.log. The validation server listened on an ephemeral loopback port and shut down afterward. No production server was restarted.
 - No visible windows, desktop screenshots, browser rendering tests, game controls, or flight-engine starts. Desktop visual acceptance remains unperformed; existing fake Electron lifecycle tests passed.
 - Daily refresh remains opt-in and off initially; its scheduling, catch-up, cancellation and failure retention are covered by the supplied fixture tests. It runs only while RoutePilot/headless service is running.
+
+## Desktop tab crash fix — 2026-09-29
+
+The production renderer reproduced a completely blank React root when selecting Markets. Stack trace reached React effect cleanup (`TypeError: l is not a function`). This Electron/Chromium version returns a Promise from `window.scrollTo`; the tab-change effect's expression body accidentally returned it to React. The effect now discards the result.
+
+- Production Vite rebuild passed. Ten focused lifecycle, launcher and old-service compatibility tests passed.
+- `scripts/check-desktop-navigation.cjs` ran in an invisible, isolated Electron renderer with synthetic market fixtures and a temporary loopback server. Five tab changes passed; 100 rows rendered on page one and 25 on page two. Reported scroll return: `[object Promise]`; visible windows: zero; flight workers: zero. Evidence: work/navigation-check.log.
+- Launcher freshness checks now include features/markets/ui and dependency manifests. A running old backend produces an explicit restart instruction on the market panel.
+- The older live background service was also detected (markets API 404), then replaced with the current headless service after it closed. Existing saved market data was retained. No flight was started.
+- An initial sandboxed diagnostic Electron process failed to launch its renderer and caused a Windows crash dialog; that process was cleaned up. The successful check used an isolated unrestricted process with Windows error dialogs suppressed. No game inputs or screenshots were taken. Visible desktop acceptance is still user-side.
