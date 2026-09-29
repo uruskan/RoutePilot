@@ -12,7 +12,9 @@
     "cli": "node cli/routepilot.mjs",
     "dev": "vite",
     "build": "vite build",
-    "test": "node --test test/*.test.mjs"
+    "test": "node --test test/*.test.mjs && node features/markets/scripts/run-tests.mjs",
+    "test:markets": "node features/markets/scripts/run-tests.mjs",
+    "markets:standalone": "node features/markets/cli/markets.mjs"
   },
   "dependencies": {
     "lucide-react": "1.48.0",

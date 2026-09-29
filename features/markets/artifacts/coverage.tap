@@ -1,0 +1,768 @@
+TAP version 13
+# Subtest: real CLI entry point executes --help under Node without Electron
+ok 1 - real CLI entry point executes --help under Node without Electron
+  ---
+  duration_ms: 49.479414
+  type: 'test'
+  ...
+# Subtest: CLI refresh uses mocked networking and writes a reusable standalone report
+ok 2 - CLI refresh uses mocked networking and writes a reusable standalone report
+  ---
+  duration_ms: 57.006696
+  type: 'test'
+  ...
+# Subtest: CLI read-only results can use explicit coordinates but never guesses a missing location
+ok 3 - CLI read-only results can use explicit coordinates but never guesses a missing location
+  ---
+  duration_ms: 17.358681
+  type: 'test'
+  ...
+# Subtest: CLI export writes CSV to the specified path and does not fetch
+ok 4 - CLI export writes CSV to the specified path and does not fetch
+  ---
+  duration_ms: 14.112263
+  type: 'test'
+  ...
+# Subtest: CLI rejects malformed coordinates and unknown options instead of coercing them
+ok 5 - CLI rejects malformed coordinates and unknown options instead of coercing them
+  ---
+  duration_ms: 15.682318
+  type: 'test'
+  ...
+# Subtest: CLI invalid settings patch leaves the previous settings unchanged
+ok 6 - CLI invalid settings patch leaves the previous settings unchanged
+  ---
+  duration_ms: 8.781158
+  type: 'test'
+  ...
+# Subtest: CLI watch will not silently enable daily refresh
+ok 7 - CLI watch will not silently enable daily refresh
+  ---
+  duration_ms: 12.620615
+  type: 'test'
+  ...
+# Subtest: CLI watch starts daily catch-up and exits cleanly on cancellation
+ok 8 - CLI watch starts daily catch-up and exits cleanly on cancellation
+  ---
+  duration_ms: 8.572885
+  type: 'test'
+  ...
+# Subtest: CLI refresh has a nonzero exit status on network failure
+ok 9 - CLI refresh has a nonzero exit status on network failure
+  ---
+  duration_ms: 21.184229
+  type: 'test'
+  ...
+# Subtest: paginates to count, sends the observed request shape and bounds concurrency
+ok 10 - paginates to count, sends the observed request shape and bounds concurrency
+  ---
+  duration_ms: 64.943888
+  type: 'test'
+  ...
+# Subtest: adapts when the server clamps the requested page size
+ok 11 - adapts when the server clamps the requested page size
+  ---
+  duration_ms: 1.545086
+  type: 'test'
+  ...
+# Subtest: cap guard bisects the time window and deduplicates overlapping boundaries
+ok 12 - cap guard bisects the time window and deduplicates overlapping boundaries
+  ---
+  duration_ms: 9.772371
+  type: 'test'
+  ...
+# Subtest: an exactly capped count is subdivided, recovering records hidden behind a reported cap
+ok 13 - an exactly capped count is subdivided, recovering records hidden behind a reported cap
+  ---
+  duration_ms: 2.488967
+  type: 'test'
+  ...
+# Subtest: pagination shortfalls are subdivided even when actual cap differs from the configured guard
+ok 14 - pagination shortfalls are subdivided even when actual cap differs from the configured guard
+  ---
+  duration_ms: 4.075255
+  type: 'test'
+  ...
+# Subtest: unpartitionable same-timestamp cap reports incomplete coverage rather than claiming success
+ok 15 - unpartitionable same-timestamp cap reports incomplete coverage rather than claiming success
+  ---
+  duration_ms: 4.149817
+  type: 'test'
+  ...
+# Subtest: deep-page rejection leads to smaller slices, not a silently truncated report
+ok 16 - deep-page rejection leads to smaller slices, not a silently truncated report
+  ---
+  duration_ms: 2.849619
+  type: 'test'
+  ...
+# Subtest: changing counts during pagination are detected and retried through subdivision
+ok 17 - changing counts during pagination are detected and retried through subdivision
+  ---
+  duration_ms: 1.571135
+  type: 'test'
+  ...
+# Subtest: duplicate page contents cannot masquerade as complete coverage
+ok 18 - duplicate page contents cannot masquerade as complete coverage
+  ---
+  duration_ms: 0.911342
+  type: 'test'
+  ...
+# Subtest: out-of-window records reveal an ignored or inconsistent API filter
+ok 19 - out-of-window records reveal an ignored or inconsistent API filter
+  ---
+  duration_ms: 0.524039
+  type: 'test'
+  ...
+# Subtest: missing market arrays are hydrated via GET /api/station/id record wrapper
+ok 20 - missing market arrays are hydrated via GET /api/station/id record wrapper
+  ---
+  duration_ms: 13.664745
+  type: 'test'
+  ...
+# Subtest: detail hydration never borrows a search timestamp for a detail quote without one
+ok 21 - detail hydration never borrows a search timestamp for a detail quote without one
+  ---
+  duration_ms: 1.24235
+  type: 'test'
+  ...
+# Subtest: malformed detail wrappers or wrong IDs fail instead of attaching another station quote
+ok 22 - malformed detail wrappers or wrong IDs fail instead of attaching another station quote
+  ---
+  duration_ms: 0.955057
+  type: 'test'
+  ...
+# Subtest: missing markets are explicitly incomplete if hydration is disabled or exceeds its budget
+ok 23 - missing markets are explicitly incomplete if hydration is disabled or exceeds its budget
+  ---
+  duration_ms: 0.868817
+  type: 'test'
+  ...
+# Subtest: transient 503 is retried but 400 is not
+ok 24 - transient 503 is retried but 400 is not
+  ---
+  duration_ms: 2.440053
+  type: 'test'
+  ...
+# Subtest: 429 Retry-After is respected
+ok 25 - 429 Retry-After is respected
+  ---
+  duration_ms: 26.334838
+  type: 'test'
+  ...
+# Subtest: long Retry-After fails promptly and exposes retry delay instead of retrying too soon
+ok 26 - long Retry-After fails promptly and exposes retry delay instead of retrying too soon
+  ---
+  duration_ms: 0.649117
+  type: 'test'
+  ...
+# Subtest: connection failures have a bounded retry count
+ok 27 - connection failures have a bounded retry count
+  ---
+  duration_ms: 2.182125
+  type: 'test'
+  ...
+# Subtest: timeout also works with a fetch implementation that ignores AbortSignal
+ok 28 - timeout also works with a fetch implementation that ignores AbortSignal
+  ---
+  duration_ms: 20.079867
+  type: 'test'
+  ...
+# Subtest: timeout covers response body reads, not only receipt of response headers
+ok 29 - timeout covers response body reads, not only receipt of response headers
+  ---
+  duration_ms: 21.72252
+  type: 'test'
+  ...
+# Subtest: request starts obey global pacing even with parallel workers
+ok 30 - request starts obey global pacing even with parallel workers
+  ---
+  duration_ms: 67.666948
+  type: 'test'
+  ...
+# Subtest: cancellation before collection performs no request
+ok 31 - cancellation before collection performs no request
+  ---
+  duration_ms: 0.439361
+  type: 'test'
+  ...
+# Subtest: cancellation interrupts active networking even when fetch ignores the signal
+ok 32 - cancellation interrupts active networking even when fetch ignores the signal
+  ---
+  duration_ms: 2.446774
+  type: 'test'
+  ...
+# Subtest: cancellation interrupts exponential retry sleep
+ok 33 - cancellation interrupts exponential retry sleep
+  ---
+  duration_ms: 2.502327
+  type: 'test'
+  ...
+# Subtest: request and station safety budgets return explicit incomplete coverage
+ok 34 - request and station safety budgets return explicit incomplete coverage
+  ---
+  duration_ms: 1.135349
+  type: 'test'
+  ...
+# Subtest: malformed successful responses are schema errors
+ok 35 - malformed successful responses are schema errors
+  ---
+  duration_ms: 1.269722
+  type: 'test'
+  ...
+# Subtest: oversized responses are rejected using both declared and streamed size
+ok 36 - oversized responses are rejected using both declared and streamed size
+  ---
+  duration_ms: 0.924142
+  type: 'test'
+  ...
+# Subtest: a valid empty source produces an empty, reconciled snapshot
+ok 37 - a valid empty source produces an empty, reconciled snapshot
+  ---
+  duration_ms: 0.600174
+  type: 'test'
+  ...
+# Subtest: cancellation from a progress callback cannot miss the request abort listener
+ok 38 - cancellation from a progress callback cannot miss the request abort listener
+  ---
+  duration_ms: 0.38551
+  type: 'test'
+  ...
+# Subtest: browser transport → authenticated loopback router → service → mocked source → persisted report and full CSV
+ok 39 - browser transport → authenticated loopback router → service → mocked source → persisted report and full CSV
+  ---
+  duration_ms: 144.831312
+  type: 'test'
+  ...
+# Subtest: router leaves unrelated paths and the existing flight handler untouched
+ok 40 - router leaves unrelated paths and the existing flight handler untouched
+  ---
+  duration_ms: 53.679807
+  type: 'test'
+  ...
+# Subtest: GET is authenticated by default; POST always requires authentication
+ok 41 - GET is authenticated by default; POST always requires authentication
+  ---
+  duration_ms: 15.327834
+  type: 'test'
+  ...
+# Subtest: browser origins and non-loopback Host headers are rejected even with a token
+ok 42 - browser origins and non-loopback Host headers are rejected even with a token
+  ---
+  duration_ms: 17.732905
+  type: 'test'
+  ...
+# Subtest: preflight is explicitly scoped and never emits wildcard CORS
+ok 43 - preflight is explicitly scoped and never emits wildcard CORS
+  ---
+  duration_ms: 8.945566
+  type: 'test'
+  ...
+# Subtest: POST settings validates JSON and reconfigures without touching flight routes
+ok 44 - POST settings validates JSON and reconfigures without touching flight routes
+  ---
+  duration_ms: 11.028522
+  type: 'test'
+  ...
+# Subtest: refresh responds immediately with a job; duplicate calls share it; cancel is authenticated
+ok 45 - refresh responds immediately with a job; duplicate calls share it; cancel is authenticated
+  ---
+  duration_ms: 18.844728
+  type: 'test'
+  ...
+# Subtest: GET results validates filters, provides pagination and surfaces missing location as 409
+ok 46 - GET results validates filters, provides pagination and surfaces missing location as 409
+  ---
+  duration_ms: 32.978044
+  type: 'test'
+  ...
+# Subtest: CSV export has attachment headers, a UTF-8 BOM and conditional-profit labels
+ok 47 - CSV export has attachment headers, a UTF-8 BOM and conditional-profit labels
+  ---
+  duration_ms: 9.446951
+  type: 'test'
+  ...
+# Subtest: method/route/body limits fail clearly without starting a refresh
+ok 48 - method/route/body limits fail clearly without starting a refresh
+  ---
+  duration_ms: 8.995701
+  type: 'test'
+  ...
+# Subtest: HTTP adapter requires authentication configuration and rejects wildcard CORS
+ok 49 - HTTP adapter requires authentication configuration and rejects wildcard CORS
+  ---
+  duration_ms: 0.290637
+  type: 'test'
+  ...
+# Subtest: buy_price is paid, sell_price is received; exact demand and full-stock arithmetic
+ok 50 - buy_price is paid, sell_price is received; exact demand and full-stock arithmetic
+  ---
+  duration_ms: 8.163199
+  type: 'test'
+  ...
+# Subtest: only explicitly public fleet carriers may sell; inaccessible carriers cannot buy
+ok 51 - only explicitly public fleet carriers may sell; inaccessible carriers cannot buy
+  ---
+  duration_ms: 1.745016
+  type: 'test'
+  ...
+# Subtest: zero spread, negative spread and self-trades are excluded
+ok 52 - zero spread, negative spread and self-trades are excluded
+  ---
+  duration_ms: 1.47105
+  type: 'test'
+  ...
+# Subtest: buyer demand must cover ENTIRE advertised stock, not only affordable load
+ok 53 - buyer demand must cover ENTIRE advertised stock, not only affordable load
+  ---
+  duration_ms: 1.343392
+  type: 'test'
+  ...
+# Subtest: pad and route constraints are applied before selecting the best buyer
+ok 54 - pad and route constraints are applied before selecting the best buyer
+  ---
+  duration_ms: 1.002289
+  type: 'test'
+  ...
+# Subtest: nearby seller and short market-to-market route are independent filters
+ok 55 - nearby seller and short market-to-market route are independent filters
+  ---
+  duration_ms: 0.975658
+  type: 'test'
+  ...
+# Subtest: missing position disables location-dependent requests rather than inferring a system position
+ok 56 - missing position disables location-dependent requests rather than inferring a system position
+  ---
+  duration_ms: 1.616003
+  type: 'test'
+  ...
+# Subtest: missing/empty/boolean coordinates are unknown, while real origin coordinates are valid
+ok 57 - missing/empty/boolean coordinates are unknown, while real origin coordinates are valid
+  ---
+  duration_ms: 0.346441
+  type: 'test'
+  ...
+# Subtest: missing market timestamp is not replaced by station updated_at
+ok 58 - missing market timestamp is not replaced by station updated_at
+  ---
+  duration_ms: 1.405446
+  type: 'test'
+  ...
+# Subtest: staleness applies independently to both endpoints and ages are evaluated at query time
+ok 59 - staleness applies independently to both endpoints and ages are evaluated at query time
+  ---
+  duration_ms: 2.075564
+  type: 'test'
+  ...
+# Subtest: future timestamps are flagged, not clamped to zero; finite age filter rejects them
+ok 60 - future timestamps are flagged, not clamped to zero; finite age filter rejects them
+  ---
+  duration_ms: 1.191033
+  type: 'test'
+  ...
+# Subtest: timestamps require valid dates and explicit timezones
+ok 61 - timestamps require valid dates and explicit timezones
+  ---
+  duration_ms: 0.188844
+  type: 'test'
+  ...
+# Subtest: budget, reserve, capacity and stock all independently cap the affordable load
+ok 62 - budget, reserve, capacity and stock all independently cap the affordable load
+  ---
+  duration_ms: 1.775143
+  type: 'test'
+  ...
+# Subtest: unset credits/cargo stay unknown and affordable-only excludes unknown and zero loads
+ok 63 - unset credits/cargo stay unknown and affordable-only excludes unknown and zero loads
+  ---
+  duration_ms: 1.090883
+  type: 'test'
+  ...
+# Subtest: unknown pads fail strict size filters; explicit no-large cannot be bypassed
+ok 64 - unknown pads fail strict size filters; explicit no-large cannot be bypassed
+  ---
+  duration_ms: 1.212775
+  type: 'test'
+  ...
+# Subtest: larger confirmed pads support smaller ships
+ok 65 - larger confirmed pads support smaller ships
+  ---
+  duration_ms: 1.076741
+  type: 'test'
+  ...
+# Subtest: permits, surface landings and conservative corrosive hazard flags are exposed and filterable
+ok 66 - permits, surface landings and conservative corrosive hazard flags are exposed and filterable
+  ---
+  duration_ms: 1.450964
+  type: 'test'
+  ...
+# Subtest: unknown permit/surface fields are excluded by restrictive filters
+ok 67 - unknown permit/surface fields are excluded by restrictive filters
+  ---
+  duration_ms: 1.103211
+  type: 'test'
+  ...
+# Subtest: best-price ties use shortest known route, then newer quote
+ok 68 - best-price ties use shortest known route, then newer quote
+  ---
+  duration_ms: 8.056538
+  type: 'test'
+  ...
+# Subtest: all five rankings produce the expected top result
+ok 69 - all five rankings produce the expected top result
+  ---
+  duration_ms: 1.412926
+  type: 'test'
+  ...
+# Subtest: unknown distances sort last and cannot pass a distance limit
+ok 70 - unknown distances sort last and cannot pass a distance limit
+  ---
+  duration_ms: 1.107387
+  type: 'test'
+  ...
+# Subtest: more than 100 real opportunities are retained without summing shared demand
+ok 71 - more than 100 real opportunities are retained without summing shared demand
+  ---
+  duration_ms: 5.209482
+  type: 'test'
+  ...
+# Subtest: unsafe arithmetic is surfaced as null/overflow, not imprecise credit totals
+ok 72 - unsafe arithmetic is surfaced as null/overflow, not imprecise credit totals
+  ---
+  duration_ms: 1.053386
+  type: 'test'
+  ...
+# Subtest: commodity matching is case insensitive; duplicate commodity records fail closed
+ok 73 - commodity matching is case insensitive; duplicate commodity records fail closed
+  ---
+  duration_ms: 0.919765
+  type: 'test'
+  ...
+# Subtest: latest station observation wins without merging old and new stock
+ok 74 - latest station observation wins without merging old and new stock
+  ---
+  duration_ms: 0.968678
+  type: 'test'
+  ...
+# Subtest: invalid station IDs and missing types do not become eligible markets
+ok 75 - invalid station IDs and missing types do not become eligible markets
+  ---
+  duration_ms: 0.774366
+  type: 'test'
+  ...
+# Subtest: CSV protection covers formula prefixes, whitespace, newlines and embedded delimiters
+ok 76 - CSV protection covers formula prefixes, whitespace, newlines and embedded delimiters
+  ---
+  duration_ms: 1.650715
+  type: 'test'
+  ...
+# Subtest: settings and result queries reject typos, coercions, duplicates and invalid ranges
+ok 77 - settings and result queries reject typos, coercions, duplicates and invalid ranges
+  ---
+  duration_ms: 0.733354
+  type: 'test'
+  ...
+# Subtest: deterministic randomized matching agrees with an independent exhaustive oracle
+ok 78 - deterministic randomized matching agrees with an independent exhaustive oracle
+  ---
+  duration_ms: 18.51366
+  type: 'test'
+  ...
+# Subtest: CSV formula protection covers Unicode compatibility prefixes and control characters
+ok 79 - CSV formula protection covers Unicode compatibility prefixes and control characters
+  ---
+  duration_ms: 0.240953
+  type: 'test'
+  ...
+# Subtest: UTC deadline calculation handles pre-deadline, post-deadline and manual successes
+ok 80 - UTC deadline calculation handles pre-deadline, post-deadline and manual successes
+  ---
+  duration_ms: 1.841442
+  type: 'test'
+  ...
+# Subtest: daily refresh is opt-in and starts only after startScheduler
+ok 81 - daily refresh is opt-in and starts only after startScheduler
+  ---
+  duration_ms: 23.497887
+  type: 'test'
+  ...
+# Subtest: startup catch-up runs once; the next refresh is the next UTC deadline
+ok 82 - startup catch-up runs once; the next refresh is the next UTC deadline
+  ---
+  duration_ms: 44.734852
+  type: 'test'
+  ...
+# Subtest: manual success satisfies the elapsed daily deadline without an extra catch-up run
+ok 83 - manual success satisfies the elapsed daily deadline without an extra catch-up run
+  ---
+  duration_ms: 5.706491
+  type: 'test'
+  ...
+# Subtest: failure uses exponential backoff, not a tight retry loop, and success resets it
+ok 84 - failure uses exponential backoff, not a tight retry loop, and success resets it
+  ---
+  duration_ms: 35.588799
+  type: 'test'
+  ...
+# Subtest: Retry-After can postpone the scheduler beyond its ordinary exponential backoff
+ok 85 - Retry-After can postpone the scheduler beyond its ordinary exponential backoff
+  ---
+  duration_ms: 9.303129
+  type: 'test'
+  ...
+# Subtest: cancellation applies a persisted cooldown instead of immediately restarting the same daily run
+ok 86 - cancellation applies a persisted cooldown instead of immediately restarting the same daily run
+  ---
+  duration_ms: 9.173119
+  type: 'test'
+  ...
+# Subtest: restart preserves failed-run backoff and does not immediately retry
+ok 87 - restart preserves failed-run backoff and does not immediately retry
+  ---
+  duration_ms: 12.245233
+  type: 'test'
+  ...
+# Subtest: several missed days coalesce to one startup catch-up, not a backlog of daily scans
+ok 88 - several missed days coalesce to one startup catch-up, not a backlog of daily scans
+  ---
+  duration_ms: 18.388882
+  type: 'test'
+  ...
+# Subtest: enabling/disabling persisted preference arms or clears a running scheduler
+ok 89 - enabling/disabling persisted preference arms or clears a running scheduler
+  ---
+  duration_ms: 9.889313
+  type: 'test'
+  ...
+# Subtest: manual refresh can explicitly bypass failure backoff without duplicating a running job
+ok 90 - manual refresh can explicitly bypass failure backoff without duplicating a running job
+  ---
+  duration_ms: 7.022341
+  type: 'test'
+  ...
+# Subtest: closing the service removes daily timers
+ok 91 - closing the service removes daily timers
+  ---
+  duration_ms: 2.237308
+  type: 'test'
+  ...
+# Subtest: empty status/results do not access the network and show no fabricated report
+ok 92 - empty status/results do not access the network and show no fabricated report
+  ---
+  duration_ms: 14.496703
+  type: 'test'
+  ...
+# Subtest: successful refresh atomically persists source and computed reference results
+ok 93 - successful refresh atomically persists source and computed reference results
+  ---
+  duration_ms: 52.375864
+  type: 'test'
+  ...
+# Subtest: a failed refresh retains both last successful file bytes and last successful in-memory report
+ok 94 - a failed refresh retains both last successful file bytes and last successful in-memory report
+  ---
+  duration_ms: 13.523518
+  type: 'test'
+  ...
+# Subtest: cancellation retains the prior report and duplicate refresh calls return the identical promise
+ok 95 - cancellation retains the prior report and duplicate refresh calls return the identical promise
+  ---
+  duration_ms: 17.950872
+  type: 'test'
+  ...
+# Subtest: refreshing twice re-queries a moving rolling window; a complete prior report never freezes data
+ok 96 - refreshing twice re-queries a moving rolling window; a complete prior report never freezes data
+  ---
+  duration_ms: 12.645727
+  type: 'test'
+  ...
+# Subtest: results recompute budget/reserve, age and live context without another network request
+ok 97 - results recompute budget/reserve, age and live context without another network request
+  ---
+  duration_ms: 7.005496
+  type: 'test'
+  ...
+# Subtest: paginated results and CSV preserve more than 100 opportunities
+ok 98 - paginated results and CSV preserve more than 100 opportunities
+  ---
+  duration_ms: 22.462485
+  type: 'test'
+  ...
+# Subtest: persistence round-trip never reuses the previous process journal position
+ok 99 - persistence round-trip never reuses the previous process journal position
+  ---
+  duration_ms: 17.664261
+  type: 'test'
+  ...
+# Subtest: concurrent configure calls serialize their patches without lost updates
+ok 100 - concurrent configure calls serialize their patches without lost updates
+  ---
+  duration_ms: 3.472357
+  type: 'test'
+  ...
+# Subtest: invalid settings leave existing persisted state unchanged
+ok 101 - invalid settings leave existing persisted state unchanged
+  ---
+  duration_ms: 2.166652
+  type: 'test'
+  ...
+# Subtest: one writer owns a root, while a read-only reader can safely open the last report
+ok 102 - one writer owns a root, while a read-only reader can safely open the last report
+  ---
+  duration_ms: 12.962563
+  type: 'test'
+  ...
+# Subtest: corrupt state fails closed without replacing user settings and releases its lock
+ok 103 - corrupt state fails closed without replacing user settings and releases its lock
+  ---
+  duration_ms: 2.007752
+  type: 'test'
+  ...
+# Subtest: corrupt report is surfaced as a warning and can only be replaced by a successful refresh
+ok 104 - corrupt report is surfaced as a warning and can only be replaced by a successful refresh
+  ---
+  duration_ms: 5.461191
+  type: 'test'
+  ...
+# Subtest: interrupted saved refresh is recovered with backoff and its last report intact
+ok 105 - interrupted saved refresh is recovered with backoff and its last report intact
+  ---
+  duration_ms: 6.535989
+  type: 'test'
+  ...
+# Subtest: incomplete coverage is visible in status but never replaces a prior successful report
+ok 106 - incomplete coverage is visible in status but never replaces a prior successful report
+  ---
+  duration_ms: 7.50674
+  type: 'test'
+  ...
+# Subtest: context provider failure becomes explicit unknown rather than a refresh failure
+ok 107 - context provider failure becomes explicit unknown rather than a refresh failure
+  ---
+  duration_ms: 6.439073
+  type: 'test'
+  ...
+# Subtest: a saved distance-from-me preference cannot prevent collection when the journal is absent
+ok 108 - a saved distance-from-me preference cannot prevent collection when the journal is absent
+  ---
+  duration_ms: 5.565408
+  type: 'test'
+  ...
+# Subtest: close aborts active work, waits for cleanup and releases the storage lock
+ok 109 - close aborts active work, waits for cleanup and releases the storage lock
+  ---
+  duration_ms: 4.292531
+  type: 'test'
+  ...
+# Subtest: accepted cancellation before an atomic write leaves the old JSON unchanged
+ok 110 - accepted cancellation before an atomic write leaves the old JSON unchanged
+  ---
+  duration_ms: 2.035755
+  type: 'test'
+  ...
+# Subtest: caller mutations of returned coordinates and metadata cannot alter later analyses
+ok 111 - caller mutations of returned coordinates and metadata cannot alter later analyses
+  ---
+  duration_ms: 4.67706
+  type: 'test'
+  ...
+# Subtest: UI client encodes filters explicitly, including null, zero and false
+ok 112 - UI client encodes filters explicitly, including null, zero and false
+  ---
+  duration_ms: 27.061192
+  type: 'test'
+  ...
+# Subtest: UI mutations only use the isolated market namespace and explicit JSON POSTs
+ok 113 - UI mutations only use the isolated market namespace and explicit JSON POSTs
+  ---
+  duration_ms: 2.200202
+  type: 'test'
+  ...
+# Subtest: UI client surfaces typed server errors and does not hide authentication failures
+ok 114 - UI client surfaces typed server errors and does not hide authentication failures
+  ---
+  duration_ms: 1.423894
+  type: 'test'
+  ...
+# Subtest: UI client returns a Blob for CSV without stripping the UTF-8 BOM
+ok 115 - UI client returns a Blob for CSV without stripping the UTF-8 BOM
+  ---
+  duration_ms: 1.20283
+  type: 'test'
+  ...
+# Subtest: UI timeout works even with a hung token provider or signal-ignoring fetch
+ok 116 - UI timeout works even with a hung token provider or signal-ignoring fetch
+  ---
+  duration_ms: 31.682017
+  type: 'test'
+  ...
+# Subtest: UI caller cancellation aborts request lifetime
+ok 117 - UI caller cancellation aborts request lifetime
+  ---
+  duration_ms: 0.485411
+  type: 'test'
+  ...
+# Subtest: UI client refuses to send a local bearer token to a non-loopback or credential-bearing URL
+ok 118 - UI client refuses to send a local bearer token to a non-loopback or credential-bearing URL
+  ---
+  duration_ms: 0.342766
+  type: 'test'
+  ...
+# Subtest: UI draft conversion preserves blank unknown values, actual zero and booleans
+ok 119 - UI draft conversion preserves blank unknown values, actual zero and booleans
+  ---
+  duration_ms: 0.344979
+  type: 'test'
+  ...
+# Subtest: UI formatting distinguishes unknown, zero and future market times
+ok 120 - UI formatting distinguishes unknown, zero and future market times
+  ---
+  duration_ms: 15.762378
+  type: 'test'
+  ...
+# Subtest: UI malformed JSON errors are explicit
+ok 121 - UI malformed JSON errors are explicit
+  ---
+  duration_ms: 0.910842
+  type: 'test'
+  ...
+# Subtest: an already-aborted UI request does not fetch or leak a late token rejection
+ok 122 - an already-aborted UI request does not fetch or leak a late token rejection
+  ---
+  duration_ms: 6.447816
+  type: 'test'
+  ...
+1..122
+# tests 122
+# suites 0
+# pass 122
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 729.962127
+# start of coverage report
+# --------------------------------------------------------------------------------------------------------------------------
+# file                  | line % | branch % | funcs % | uncovered lines
+# --------------------------------------------------------------------------------------------------------------------------
+# cli                   |        |          |         | 
+#  markets.mjs          |  92.86 |    72.41 |   66.67 | 58 91-93 118-124
+# server                |        |          |         | 
+#  market-http.mjs      | 100.00 |    84.52 |   76.47 | 
+#  markets.mjs          |  96.45 |    88.38 |   94.51 | 301-303 517 527-530 557-567 763-767 833 835 838 1019-1024 1044-1049
+# test                  |        |          |         | 
+#  cli.test.mjs         | 100.00 |   100.00 |  100.00 | 
+#  collection.test.mjs  | 100.00 |   100.00 |   98.70 | 
+#  end-to-end.test.mjs  | 100.00 |   100.00 |   92.31 | 
+#  fixtures             |        |          |         | 
+#   synthetic.mjs       | 100.00 |    94.23 |   93.10 | 
+#  http.test.mjs        | 100.00 |   100.00 |   93.94 | 
+#  matching.test.mjs    | 100.00 |    98.46 |  100.00 | 
+#  scheduling.test.mjs  | 100.00 |   100.00 |  100.00 | 
+#  service.test.mjs     | 100.00 |   100.00 |   95.83 | 
+#  ui-client.test.mjs   | 100.00 |   100.00 |   90.00 | 
+# ui                    |        |          |         | 
+#  market-client.mjs    |  97.92 |    93.07 |   96.00 | 94-95
+# --------------------------------------------------------------------------------------------------------------------------
+# all files             |  97.94 |    90.37 |   94.57 | 
+# --------------------------------------------------------------------------------------------------------------------------
+# end of coverage report

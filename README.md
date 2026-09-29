@@ -110,3 +110,28 @@ Test için `ED_AP.py` dosyasını doğrudan çalıştırmayın veya rastgele iç
 ## Lisans
 
 Yeni RoutePilot kodu [MIT lisanslıdır](LICENSE). Kullanılan EDAP motorunun ve üçüncü taraf bileşenlerin atıfları [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) içindedir. Mevcut EDAP kurulumu, Python bağımlılıkları ve model dosyaları bu depoya kopyalanmaz.
+
+## Ticaret tarayıcısı / Markets
+
+Sol menüde **Ticaret tarayıcısı** açılır. **Refresh markets** ile Spansh'in son 24 saatte güncellenmiş piyasa raporları toplanır; pencere ve yaş sınırı ayarlardan değiştirilebilir. Sayfa sayısı, ilerleme, son başarılı tarama, kaynak zamanı ve hatalar görünür. Başarısız veya iptal edilen tarama son başarılı raporu silmez.
+
+**Closest seller to me** günlükteki gerçek StarPos konumundan satıcıya mesafeyi hesaplar. **Shortest seller → buyer route** iki piyasa arasındaki mesafedir. Konum atlamayla güncellenir; oturum kapalıysa/bilinmiyorsa konuma bağlı sıralama kullanılamaz. Ayrıca kâr/ton, kâr/sefer, toplam stok kârı, mesafe, yaş, stok, iniş pisti ve izin filtreleri vardır. Alıcının talebi satıcının tüm stokunu karşılamalıdır. **Cargo capacity**, **Credits** ve **Credit reserve** elle belirlenen senaryo girdileridir; bilinmeyen değerler tahmin edilmez.
+
+**Daily refresh** tercihini açıp **Save settings** ile kaydedin. Günlük saat UTC'dir (Türkiye saati UTC+3). RoutePilot veya arayüzsüz servisi çalışırken yeniler; kapalıyken çalışmaz, sonraki açılışta kaçırılan yenilemeyi yapar. Tercih başlangıçta kapalıdır. Otomatik yenileme oyuna tuş göndermez.
+
+```powershell
+.\RoutePilot-CLI.cmd markets --help
+.\RoutePilot-CLI.cmd markets refresh
+.\RoutePilot-CLI.cmd markets status
+.\RoutePilot-CLI.cmd markets list --sort closestSeller --maxPlayerDistanceLy 500 --requiredPad L
+.\RoutePilot-CLI.cmd markets list --sort loadProfit --cargoCapacity 1232 --credits 220000000 --creditReserve 20000000
+.\RoutePilot-CLI.cmd markets export .\work\trades.csv --sort closestSeller
+.\RoutePilot-CLI.cmd markets daily on
+.\RoutePilot-CLI.cmd markets cancel
+```
+
+CLI aynı çalışan servisi kullanır; ayrıca motor veya ikinci tarayıcı başlatmaz. `refresh` sırasında Ctrl+C yalnızca beklemeyi bırakır; taramayı durdurmak için `markets cancel` kullanın. `--no-wait` yenilemeyi başlatıp hemen döner. Geliştiriciler için `npm run markets:standalone -- --help` ayrı, arayüzsüz modülü gösterir; aynı depoya iki yazıcı açılmaz.
+
+Piyasa verileri `work/markets/` altında saklanır. JSON, ayarlar ve CSV dışa aktarımı desteklenir; eski XLSX dosyası bu sürümde yenilenmez. CSV tüm filtrelenmiş sonuçları içerir, sadece görünen 100 satırı değil. Kaynak bağlantıları yalnızca tıklandığında varsayılan tarayıcıda açılır. Spansh kamuya açık oyuncu raporlarını sağlar; fiyatlar/stoklar canlı garanti veya rezervasyon değildir. Fırsatlar aynı alıcı talebini paylaşabilir, toplam kârları toplanmamalıdır.
+
+Feature source: `features/markets/` (supplied scanner 1.0.0, integrated with a verified Drake-Class Carrier adapter fix). `npm test` runs both the host integration tests and the supplied scanner suite. No extra runtime dependencies were installed.

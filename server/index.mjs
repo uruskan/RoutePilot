@@ -5,6 +5,8 @@ import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { TelemetryReader } from './telemetry.mjs';
 import { EngineController } from './engine.mjs';
+import { MarketService } from '../features/markets/server/markets.mjs';
+import { createMarketRouter, bearerAuthenticator } from '../features/markets/server/market-http.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
@@ -18,7 +20,8 @@ function sendJson(response, status, data) {
 }
 
 export function createRoutePilotServer({ root = ROOT, publicDir = path.join(root, 'public'), journalDir,
-  telemetry = new TelemetryReader({ journalDir }), engineRoot, spawnWorker, stopProcess } = {}) {
+  telemetry = new TelemetryReader({ journalDir }), engineRoot, spawnWorker, stopProcess,
+  marketRoot = path.join(root, 'work', 'markets'), marketFetch, marketNow } = {}) {
   const token = crypto.randomBytes(32).toString('hex');
   const eligibility = () => {
     const current = telemetry.snapshot();
@@ -26,6 +29,13 @@ export function createRoutePilotServer({ root = ROOT, publicDir = path.join(root
     return { ok: !blocked, reason: blocked?.detail ?? 'Rota hazır. Başlat ile uçuşu etkinleştirin.' };
   };
   const engine = new EngineController({ root, engineRoot, spawnWorker, stopProcess, eligibility });
+  const markets = new MarketService({ root: marketRoot, fetchImpl: marketFetch, now: marketNow,
+    getContext: () => {
+      const current = telemetry.snapshot().telemetry;
+      return { systemName: current.system, StarPos: current.position ?? null };
+    } });
+  const authenticateMarket = bearerAuthenticator(token);
+  let routeMarkets;
   let closing;
 
   function snapshot() {
@@ -50,6 +60,7 @@ export function createRoutePilotServer({ root = ROOT, publicDir = path.join(root
     try { url = new URL(request.url, `http://${request.headers.host}`); }
     catch { return sendJson(response, 400, { ok: false, message: 'Geçersiz istek.' }); }
     try {
+      if (routeMarkets && await routeMarkets(request, response)) return;
       if (request.method === 'GET' && url.pathname === '/api/health') return sendJson(response, 200, { app: 'RoutePilot', version: '0.1.0' });
       if (request.method === 'GET' && url.pathname === '/api/session') return sendJson(response, 200, { token });
       if (request.method === 'GET' && url.pathname === '/api/state') return sendJson(response, 200, snapshot());
@@ -110,23 +121,34 @@ export function createRoutePilotServer({ root = ROOT, publicDir = path.join(root
       engine.addActivity('error', 'Sunucu işlemi başarısız', error.message);
     }
   });
-  server.once('close', () => { void engine.close(); });
+  server.once('close', () => { void engine.close(); void markets.close(); });
 
   async function close() {
     if (closing) return closing;
     closing = (async () => {
       const closed = new Promise((resolve) => { server.close(resolve); server.closeIdleConnections?.(); });
-      await engine.close();
+      await Promise.all([engine.close(), markets.close()]);
       await closed;
     })();
     return closing;
   }
 
-  return { server, engine, telemetry, snapshot, close,
-    listen: (port = 47856) => new Promise((resolve, reject) => {
+  return { server, engine, telemetry, markets, snapshot, close,
+    listen: async (port = 47856) => {
+      await markets.ready;
+      const address = await new Promise((resolve, reject) => {
       server.once('error', reject);
-      server.listen(port, '127.0.0.1', () => { server.removeListener('error', reject); resolve(server.address()); });
-    }) };
+      server.listen(port, '127.0.0.1', () => {
+        server.removeListener('error', reject);
+        const bound = server.address();
+        routeMarkets = createMarketRouter({ service: markets, authenticate: authenticateMarket,
+          allowedOrigins: [`http://127.0.0.1:${bound.port}`, `http://localhost:${bound.port}`] });
+        resolve(bound);
+      });
+      });
+      await markets.startScheduler();
+      return address;
+    } };
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

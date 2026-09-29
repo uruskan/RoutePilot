@@ -27,7 +27,7 @@ export class TelemetryReader {
     this.journalSeen = false;
     this.lastEvent = null;
     this.sessionActive = null;
-    this.state = { system: null, systemAddress: null, ship: null, fuel: null, fuelCapacity: null, hull: null };
+    this.state = { system: null, systemAddress: null, position: null, ship: null, fuel: null, fuelCapacity: null, hull: null };
     this.routeEvent = { kind: null, time: null };
     this.routeData = null;
     this.lastStatus = null;
@@ -38,11 +38,12 @@ export class TelemetryReader {
     if (!event || typeof event !== 'object' || !text(event.event)) return;
     this.journalSeen = true;
     this.lastEvent = text(event.timestamp) ?? this.lastEvent;
-    if (event.event === 'LoadGame') this.sessionActive = true;
-    if (event.event === 'Shutdown') this.sessionActive = false;
+    if (event.event === 'LoadGame') { this.sessionActive = true; this.state.position = null; }
+    if (event.event === 'Shutdown') { this.sessionActive = false; this.state.position = null; }
     if (['Location', 'FSDJump', 'CarrierJump'].includes(event.event)) {
       this.state.system = text(event.StarSystem) ?? this.state.system;
       this.state.systemAddress = number(event.SystemAddress);
+      this.state.position = validPosition(event.StarPos) ? [...event.StarPos] : null;
     }
     if (event.event === 'Loadout' && text(event.Ship) && !['testbuggy', 'suit'].includes(event.Ship.toLowerCase())) {
       this.state.ship = shipNames[event.Ship.toLowerCase()] ?? event.Ship;
@@ -81,7 +82,7 @@ export class TelemetryReader {
     const latest = entries.at(-1);
     if (!latest) return;
     const file = path.join(this.journalDir, latest.name);
-    if (file !== this.file) { this.file = file; this.offset = 0; this.tail = ''; }
+    if (file !== this.file) { this.file = file; this.offset = 0; this.tail = ''; this.state.position = null; }
     if (latest.stat.size < this.offset) { this.offset = 0; this.tail = ''; }
     if (latest.stat.size === this.offset) return;
     let descriptor;
@@ -167,7 +168,8 @@ export class TelemetryReader {
     const inMainShip = flags !== null && (flags & FLAGS.main) !== 0 && !onFoot && !inSrv;
     let fuel = inMainShip && number(status?.Fuel?.FuelMain) !== null ? status.Fuel.FuelMain : this.state.fuel;
     if (number(fuel) === null || fuel < 0 || (this.state.fuelCapacity !== null && fuel > this.state.fuelCapacity)) fuel = null;
-    const telemetry = { system: this.state.system, ship: this.state.ship, fuel, fuelCapacity: this.state.fuelCapacity,
+    const telemetry = { system: this.state.system, position: this.state.position ? [...this.state.position] : null,
+      ship: this.state.ship, fuel, fuelCapacity: this.state.fuelCapacity,
       hull: this.state.hull, supercruise: flags !== null && (flags & FLAGS.supercruise) !== 0,
       landed: flags !== null && (flags & FLAGS.landed) !== 0, docked: flags !== null && (flags & FLAGS.docked) !== 0,
       inMainShip, guiFocus: this.statusValid && Number.isInteger(status.GuiFocus) ? status.GuiFocus : null,

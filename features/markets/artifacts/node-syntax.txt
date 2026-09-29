@@ -1,0 +1,1 @@
+PASS: Node.js syntax checked 17 ES modules. JSX is checked separately with npm run check:ui.

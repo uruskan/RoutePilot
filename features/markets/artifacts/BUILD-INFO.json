@@ -1,0 +1,21 @@
+{
+  "package": "routepilot-market-scanner",
+  "version": "1.0.0",
+  "runtime": "v22.16.0",
+  "platform": "Linux",
+  "tests": {
+    "tests": 122,
+    "pass": 122,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0,
+    "todo": 0
+  },
+  "upstreamTests": "Synthetic fixtures and mocked upstream Fetch responses",
+  "httpTests": "Actual container-local loopback sockets; no user-PC server",
+  "jsxCheck": "TypeScript 5.8.3 transpilation and emitted JavaScript syntax check; not browser rendering",
+  "liveProbe": false,
+  "liveProbeError": "EAI_AGAIN resolving spansh.co.uk",
+  "windowsElectronTested": false,
+  "gameAutomation": false
+}

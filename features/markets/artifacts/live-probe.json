@@ -1,0 +1,38 @@
+{
+  "purpose": "Explicit live Spansh contract probe; NOT a complete scan",
+  "attemptedAt": "2026-09-29T04:01:25.113Z",
+  "node": "v22.16.0",
+  "endpoint": "https://spansh.co.uk/api/stations/search",
+  "method": "POST",
+  "request": {
+    "size": 25,
+    "page": 0,
+    "filters": {
+      "market_updated_at": {
+        "comparison": "<=>",
+        "value": [
+          "2026-09-28T04:01:25.000Z",
+          "2026-09-29T04:01:25.000Z"
+        ]
+      }
+    },
+    "sort": [
+      {
+        "market_updated_at": {
+          "direction": "desc"
+        }
+      }
+    ]
+  },
+  "success": false,
+  "error": {
+    "name": "TypeError",
+    "message": "fetch failed",
+    "cause": {
+      "code": "EAI_AGAIN",
+      "message": "getaddrinfo EAI_AGAIN spansh.co.uk",
+      "hostname": "spansh.co.uk"
+    }
+  },
+  "note": "No successful live verification is claimed. Synthetic and mocked-network tests are separate."
+}

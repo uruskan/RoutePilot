@@ -1,0 +1,14 @@
+# Codex integration brief
+
+Integrate the supplied RoutePilot market scanner package into the existing repository. The scanner implementation, standalone CLI, UI, HTTP adapter and automated tests are already supplied. Work on integration, not a rewrite of the matching or refresh lifecycle.
+
+1. Inspect the existing server, authentication, journal context provider, React tab/panel structure and graceful shutdown. Do not change the autopilot, input drivers, focus behavior or flight command implementation. Do not create game automation for this feature.
+2. Copy `server/markets.mjs`, `server/market-http.mjs`, and the three UI files. Preserve their relative imports or adjust paths only. Keep tests/CLI/scripts together where appropriate. Run the supplied tests with Node 22+.
+3. Create one `MarketService` with a dedicated market-storage subdirectory under the app's existing user-data root. Inject a read-only copy of current system name and actual StarPos from the existing journal context. Do not hardcode a location, date, credits or cargo capacity. Leave finance null until the user edits it.
+4. Await `ready`, register only `/api/markets/*` through the existing Node HTTP dispatch, and reuse the existing authentication callback. The supplied router returns false for other routes; keep the existing dispatch unchanged after that check. Do not start a second server or change `127.0.0.1:47856`.
+5. Mount `MarketPanel`, scope CSS as supplied, and wire the existing trusted token/external-link transport. Honor the actual renderer origin; do not weaken Electron security to bypass `Origin: null`. Use the app's existing narrow preload/main transport when required. See `INTEGRATION.md` for the Response-compatible fetch injection seam.
+6. Call `startScheduler()` once during startup and await `close()` in existing graceful shutdown. Daily refresh remains opt-in and persisted; no OS scheduler or external task installation.
+7. Run the tests again. From the user's network, run the explicit live probe and inspect actual docking enums/timestamp formats/market fields. The supplied probe failed DNS in the build container; do not claim it previously passed. A source discrepancy needs a specific justified adapter change and regression test, not silent coercion or invented data.
+8. Perform host acceptance checks: panel auth, refresh progress/cancel, failed refresh preserving report, >100 valid rows with pagination, full CSV, settings/restart/catch-up, unknown/moved journal context, and existing flight-route behavior. No browser-render or Windows/Electron runtime success has been claimed by the package.
+
+Deliver a narrow integration diff and a record of commands/tests actually run. Do not fabricate a successful live scan, add overlapping profits, lower the full-stock demand requirement, or hide incomplete coverage.

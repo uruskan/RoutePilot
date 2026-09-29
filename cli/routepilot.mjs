@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { runMarketCli } from './market-client.mjs';
 
 export const DEFAULT_URL = 'http://127.0.0.1:47856';
 export const REQUEST_TIMEOUT_MS = 5000;
@@ -33,6 +34,7 @@ Kullanım: RoutePilot-CLI.cmd [komut]
   save     / kaydet   Öğrenilen gemi ayarlarını kaydetme isteği gönderir
   shutdown / kapat    Uçuşu durdurup RoutePilot sunucusunu kapatır
   watch    / izle     Yeni olayları ve aşama değişikliklerini izler
+  markets            Ticaret tarayıcısı; markets --help ile seçenekleri görün
   --help   / yardim   Bu yardımı gösterir
 
 Yerel adres: ${DEFAULT_URL}
@@ -204,6 +206,7 @@ async function watch(client, { out, err, signal, pollMs }) {
 }
 
 export async function runCli(args = [], options = {}) {
+  if (args[0] === 'markets') return runMarketCli(args.slice(1), options);
   const out = options.out ?? console.log;
   const err = options.err ?? console.error;
   if (args.length === 1 && ['--help', '-h', 'help', 'yardim', 'yardım'].includes(args[0])) {

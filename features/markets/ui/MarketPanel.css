@@ -1,0 +1,66 @@
+/* Every selector is scoped to this component. No body, button or table globals. */
+.rp-market { --rp-bg:#101820; --rp-panel:#18232d; --rp-border:#344550; --rp-text:#edf3f6; --rp-muted:#b5c5ce; --rp-accent:#8ed6dc; --rp-warn:#ffdda3; background:var(--rp-bg); color:var(--rp-text); border:1px solid var(--rp-border); border-radius:12px; padding:24px; font:14px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif; color-scheme:dark; }
+.rp-market * { box-sizing:border-box; }
+.rp-market h2 { font-size:25px; margin:0 0 4px; letter-spacing:-.025em; }
+.rp-market p { margin:6px 0 12px; }
+.rp-market a { color:var(--rp-accent); text-decoration:underline; text-underline-offset:3px; }
+.rp-market button,.rp-market input,.rp-market select { font:inherit; }
+.rp-market button { background:#263844; color:var(--rp-text); border:1px solid #59717e; border-radius:6px; padding:9px 12px; cursor:pointer; }
+.rp-market button:hover:not(:disabled) { background:#36505e; }
+.rp-market button:disabled { opacity:.48; cursor:not-allowed; }
+.rp-market :is(button,input,select,a,summary,[tabindex]):focus-visible { outline:3px solid var(--rp-accent); outline-offset:3px; }
+.rp-market .rp-market-primary { background:#214d55; border-color:#7eb9c0; }
+.rp-market .rp-market-header { display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:16px; margin-bottom:20px; }
+.rp-market .rp-market-eyebrow { color:var(--rp-accent); font-size:11px; font-weight:700; letter-spacing:.16em; margin:0 0 8px; }
+.rp-market .rp-market-actions { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+.rp-market .rp-market-summary { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin:16px 0; }
+.rp-market .rp-market-summary>div { background:var(--rp-panel); border:1px solid var(--rp-border); padding:14px; border-radius:8px; display:flex; flex-direction:column; gap:4px; min-width:0; overflow-wrap:anywhere; }
+.rp-market .rp-market-summary span,.rp-market small { color:var(--rp-muted); font-size:12px; }
+.rp-market .rp-market-summary strong { font-size:16px; }
+.rp-market .rp-market-error,.rp-market .rp-market-warning,.rp-market .rp-market-notice { padding:12px 14px; border-radius:6px; border:1px solid; margin:12px 0; overflow-wrap:anywhere; }
+.rp-market .rp-market-error { background:#44252a; border-color:#a86b76; color:#ffe2e6; }
+.rp-market .rp-market-warning { background:#312b20; border-color:#8d7545; color:var(--rp-warn); }
+.rp-market .rp-market-notice { background:#1b343a; border-color:#557e87; }
+.rp-market .rp-market-progress { display:flex; align-items:center; gap:12px; flex-wrap:wrap; padding:12px; background:var(--rp-panel); }
+.rp-market progress { width:130px; height:12px; accent-color:var(--rp-accent); }
+.rp-market fieldset { border:1px solid var(--rp-border); border-radius:8px; padding:16px; margin:16px 0; min-width:0; }
+.rp-market legend { font-weight:650; padding:0 6px; }
+.rp-market .rp-market-form-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; }
+.rp-market .rp-market-form-small { grid-template-columns:repeat(3,minmax(0,1fr)); }
+.rp-market .rp-market-field { display:flex; flex-direction:column; gap:5px; }
+.rp-market input:not([type=checkbox]),.rp-market select { width:100%; padding:8px; min-height:39px; color:var(--rp-text); background:#0c141b; border:1px solid #586e7b; border-radius:5px; }
+.rp-market input:disabled { opacity:.5; }
+.rp-market .rp-market-checkboxes { display:flex; flex-wrap:wrap; gap:12px 20px; margin-top:16px; }
+.rp-market .rp-market-check { display:flex; align-items:center; gap:7px; }
+.rp-market input[type=checkbox] { accent-color:var(--rp-accent); width:17px; height:17px; }
+.rp-market .rp-market-table-controls { display:flex; flex-wrap:wrap; gap:16px; align-items:flex-end; margin:24px 0 12px; }
+.rp-market .rp-market-table-controls label { display:flex; flex-direction:column; gap:5px; }
+.rp-market .rp-market-table-controls>span { color:var(--rp-muted); font-size:12px; flex:1; min-width:200px; }
+.rp-market .rp-market-table-wrap { max-height:720px; overflow:auto; border:1px solid var(--rp-border); border-radius:8px; }
+.rp-market table { width:100%; border-collapse:collapse; font-size:13px; }
+.rp-market caption { text-align:left; color:var(--rp-muted); padding:12px; background:var(--rp-panel); }
+.rp-market th { text-align:left; vertical-align:bottom; background:#21313d; padding:12px; position:sticky; top:0; z-index:1; min-width:110px; }
+.rp-market td { padding:12px; vertical-align:top; border-top:1px solid var(--rp-border); }
+.rp-market tbody tr:nth-child(even) { background:#15212a; }
+.rp-market .rp-market-number { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.rp-market td small { display:block; white-space:normal; }
+.rp-market .rp-market-station { display:flex; flex-direction:column; gap:4px; min-width:210px; }
+.rp-market .rp-market-station>span,.rp-market time { color:var(--rp-muted); font-size:11px; }
+.rp-market .rp-market-station a { font-weight:650; font-size:13px; overflow-wrap:anywhere; }
+.rp-market .rp-market-station .rp-market-age { color:var(--rp-text); font-weight:600; }
+.rp-market .rp-market-badges { display:flex; flex-wrap:wrap; gap:4px; }
+.rp-market .rp-market-badges b,.rp-market .rp-market-risk { display:inline-block; background:#3c3223; color:var(--rp-warn); padding:2px 5px; border-radius:3px; font-size:10px; font-weight:600; }
+.rp-market .rp-market-risk { display:block; margin:5px 0; }
+.rp-market details { margin-top:6px; font-size:11px; }
+.rp-market summary { cursor:pointer; color:var(--rp-warn); }
+.rp-market ul { padding-left:16px; margin:7px 0; min-width:190px; }
+.rp-market pre { max-height:220px; overflow:auto; white-space:pre-wrap; overflow-wrap:anywhere; }
+.rp-market .rp-market-empty { padding:30px 16px; text-align:center; border:1px dashed var(--rp-border); border-radius:8px; color:var(--rp-muted); }
+.rp-market .rp-market-pagination { display:flex; justify-content:flex-end; align-items:center; flex-wrap:wrap; gap:12px; margin:14px 0; }
+.rp-market .rp-market-footnotes { color:var(--rp-muted); border-top:1px solid var(--rp-border); padding-top:14px; margin-top:20px; font-size:12px; }
+@media (max-width:1000px) { .rp-market .rp-market-form-grid,.rp-market .rp-market-summary { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media (max-width:580px) { .rp-market { padding:14px; } .rp-market .rp-market-form-grid,.rp-market .rp-market-summary { grid-template-columns:1fr; } }
+
+.rp-market .rp-market-diagnostics { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 6px 18px; }
+.rp-market .rp-market-diagnostics > div { display: flex; justify-content: space-between; gap: 12px; }
+.rp-market .rp-market-diagnostics dd { margin: 0; font-variant-numeric: tabular-nums; }

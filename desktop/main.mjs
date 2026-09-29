@@ -1,4 +1,5 @@
-import { app, BrowserWindow, dialog, Menu } from 'electron';
+import { app, BrowserWindow, dialog, Menu, shell } from 'electron';
+import { openMarketSource } from './market-links.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -92,7 +93,10 @@ if (checkOnly) {
       minWidth: 850, minHeight: 650, show: false, autoHideMenuBar: true,
       backgroundColor: '#10120f', webPreferences: { nodeIntegration: false,
         contextIsolation: true, sandbox: true, spellcheck: false } });
-    window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+    window.webContents.setWindowOpenHandler(({ url: target }) => {
+      void openMarketSource(target, (address) => shell.openExternal(address));
+      return { action: 'deny' };
+    });
     window.webContents.on('will-navigate', (event, destination) => {
       try { if (new URL(destination).origin === url) return; } catch {}
       event.preventDefault();

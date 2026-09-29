@@ -1,0 +1,1 @@
+PASS: MarketPanel.jsx transpiles with TypeScript 5.8.3; emitted ES-module JavaScript passes Node syntax checking. This is not a browser render test.
