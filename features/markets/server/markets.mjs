@@ -10,6 +10,7 @@ import { resolve, join, dirname } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { performance } from 'node:perf_hooks';
 import { setImmediate as yieldImmediate } from 'node:timers/promises';
+import { isKnownCarrierAccessSystem } from '../access-rules.mjs';
 
 export const SCHEMA_VERSION = 1;
 export const SEARCH_URL = 'https://spansh.co.uk/api/stations/search';
@@ -104,7 +105,8 @@ export const DEFAULT_SETTINGS = Object.freeze({
   windowHours: 24, minStock: 1, maxMarketAgeHours: 24, requiredPad: 'any',
   maxPlayerDistanceLy: null, maxRouteDistanceLy: null,
   allowUnknownPad: false, allowPermitSystems: true, allowPlanetary: true,
-  excludePotentiallyCorrosive: false,
+  excludePotentiallyCorrosive: false, excludeCarrierAccess: true,
+  sellerType: 'carriers', buyerType: 'all', requireFullStockDemand: true,
   dailyRefresh: false, dailyUtcHour: 3,
   concurrency: 2, minRequestIntervalMs: 500, timeoutMs: 20_000,
   maxRetries: 3, retryBaseMs: 1_000, retryMaxMs: 30_000,
@@ -134,10 +136,12 @@ const NUMERIC_RULES = {
   cancellationBackoffMs: [1_000, DAY, true, false],
 };
 const BOOLEAN_KEYS = new Set(['allowUnknownPad', 'allowPermitSystems', 'allowPlanetary',
-  'excludePotentiallyCorrosive', 'dailyRefresh', 'hydrateMissingMarkets']);
+  'excludePotentiallyCorrosive', 'excludeCarrierAccess', 'requireFullStockDemand', 'dailyRefresh', 'hydrateMissingMarkets']);
 export const FILTER_KEYS = Object.freeze(['cargoCapacity', 'credits', 'creditReserve', 'minStock',
   'maxMarketAgeHours', 'requiredPad', 'maxPlayerDistanceLy', 'maxRouteDistanceLy',
-  'allowUnknownPad', 'allowPermitSystems', 'allowPlanetary', 'excludePotentiallyCorrosive']);
+  'allowUnknownPad', 'allowPermitSystems', 'allowPlanetary', 'excludePotentiallyCorrosive',
+  'excludeCarrierAccess', 'sellerType', 'buyerType', 'requireFullStockDemand']);
+export const MARKET_TYPES = Object.freeze(['carriers', 'stations', 'all']);
 export const SORTS = Object.freeze(['closestSeller', 'shortestRoute', 'margin', 'loadProfit', 'stockProfit']);
 export const LISTS = Object.freeze(['all', 'affordable']);
 
@@ -158,6 +162,8 @@ export function validateSettings(patch, base = DEFAULT_SETTINGS) {
       throw new ValidationError(`defaultSort must be one of ${SORTS.join(', ')}.`);
     } else if (key === 'requiredPad' && !['any', 'S', 'M', 'L'].includes(value)) {
       throw new ValidationError('requiredPad must be any, S, M or L.');
+    } else if (['sellerType', 'buyerType'].includes(key) && !MARKET_TYPES.includes(value)) {
+      throw new ValidationError(`${key} must be one of ${MARKET_TYPES.join(', ')}.`);
     }
     output[key] = value;
   }
@@ -185,7 +191,7 @@ export function parseResultQuery(params) {
   const result = {};
   for (const [key, value] of params) {
     if (Object.hasOwn(result, key)) throw new ValidationError(`Duplicate query parameter: ${key}`);
-    if (['list', 'sort', 'requiredPad'].includes(key)) result[key] = value;
+    if (['list', 'sort', 'requiredPad', 'sellerType', 'buyerType'].includes(key)) result[key] = value;
     else if (BOOLEAN_KEYS.has(key) && FILTER_KEYS.includes(key)) {
       if (!['true', 'false'].includes(value)) throw new ValidationError(`${key} must be true or false.`);
       result[key] = value === 'true';
@@ -289,8 +295,10 @@ export async function prepareMarkets(records, { signal } = {}) {
     if (!station.type) { diagnostics.unknownStationTypes++; continue; }
     if (station.isCarrier && !station.publicDocking) { diagnostics.inaccessibleCarriers++; continue; }
     for (const item of station.market) {
-      if (station.isCarrier && item.buyPrice > 0 && item.supply > 0) sellers.push({ station, item });
-      if (item.sellPrice > 0 && item.demand > 0) {
+      if (item.buyPrice > 0 && item.supply > 0) sellers.push({ station, item });
+      // NPC demand is an economic indicator, not a finite player buy order.
+      // An explicitly reported zero is usable in normal-ship mode; unknown is not.
+      if (item.sellPrice > 0 && item.demand !== null && (station.isCarrier ? item.demand > 0 : item.demand >= 0)) {
         if (!buyers.has(item.key)) buyers.set(item.key, []);
         buyers.get(item.key).push({ station, item });
       }
@@ -317,6 +325,7 @@ function knownPad(station) {
 }
 function eligible(station, filters, nowMs) {
   if (!station.type || (station.isCarrier && !station.publicDocking)) return false;
+  if (filters.excludeCarrierAccess && isKnownCarrierAccessSystem(station.systemName)) return false;
   if (filters.maxMarketAgeHours !== null) {
     if (station.marketUpdatedMs === null || station.marketUpdatedMs > nowMs || nowMs - station.marketUpdatedMs > filters.maxMarketAgeHours * HOUR) return false;
   }
@@ -325,6 +334,9 @@ function eligible(station, filters, nowMs) {
   if (!filters.allowPermitSystems && station.needsPermit !== false) return false;
   if (!filters.allowPlanetary && station.isPlanetary !== false) return false;
   return true;
+}
+function matchesMarketType(station, requested) {
+  return requested === 'all' || (requested === 'carriers' ? station.isCarrier : !station.isCarrier);
 }
 function safeProduct(a, b) { const n = a * b; return Number.isSafeInteger(n) ? n : null; }
 function stationView(station, nowMs) {
@@ -335,6 +347,7 @@ function stationView(station, nowMs) {
 }
 function stationFlags(station, side, filters, nowMs) {
   const flags = [];
+  if (isKnownCarrierAccessSystem(station.systemName)) flags.push(`${side}:carrier-transport-required`);
   if (station.needsPermit === true) flags.push(`${side}:permit-required`);
   if (station.needsPermit === null) flags.push(`${side}:permit-unknown`);
   if (station.isPlanetary === true) flags.push(`${side}:surface-landing`);
@@ -348,9 +361,10 @@ function stationFlags(station, side, filters, nowMs) {
   return flags;
 }
 export const REPORT_WARNINGS = Object.freeze([
-  'Full-stock profit is conditional on unchanged stock, demand, prices, access and successful completion; it is not guaranteed.',
+  'Total lot profit is conditional on unchanged stock, demand, prices, access and successful completion; it is not guaranteed. Carrier buy orders cap tradable quantity; NPC station demand is not an order limit and prices may change.',
   'Do not add rows together. Opportunities can share buyer demand, a cargo hold and the same credits. No portfolio total is calculated.',
   'Distances are straight-line light-years, not plotted jump routes, travel times or fuel feasibility. Same-system distance can be 0 ly despite a long supercruise trip.',
+  'The carrier-access filter excludes known exceptions (currently HIP 58832). It is not a jump-route feasibility check or a guarantee that every other system is reachable.',
   'Quoted prices, including possible bulk/demand effects, are not guaranteed. No bulk-price threshold or adjustment is invented.',
   'Potentially corrosive cargo is detected by a conservative name/category heuristic, not a complete hazards database. Cargo legality and permits held are not verified.',
 ]);
@@ -362,6 +376,39 @@ function orderNullable(a, b, descending = false) {
 }
 const SORT_FIELDS = { closestSeller: ['playerToSellerLy', false], shortestRoute: ['sellerToBuyerLy', false],
   margin: ['marginPerTonne', true], loadProfit: ['profitPerLoad', true], stockProfit: ['fullStockProfit', true] };
+
+function spatialCell(position, radius) {
+  // A minimum cell size keeps tiny nonzero user limits numerically stable.
+  return radius === 0 ? position.join(',') : position.map(value => Math.floor(value / Math.max(radius, 1))).join(',');
+}
+function neighboringCells(position, radius) {
+  if (radius === 0) return [spatialCell(position, radius)];
+  const [x, y, z] = position.map(value => Math.floor(value / Math.max(radius, 1)));
+  const cells = new Set();
+  for (const dx of [-1, 0, 1]) for (const dy of [-1, 0, 1]) for (const dz of [-1, 0, 1]) cells.add(`${x + dx},${y + dy},${z + dz}`);
+  return cells;
+}
+/** Preserve the globally price-sorted order inside each cell. Nearby searches
+ * can stop at a lower price in each cell instead of scanning every remote buyer
+ * for every commodity sold by every station. Only references are indexed. */
+async function indexNearbyBuyers(database, filters, qualifies, signal) {
+  const index = new Map();
+  let visited = 0;
+  for (const [commodity, buyers] of database.buyers) {
+    const cells = new Map();
+    for (const buyer of buyers) {
+      if (++visited % 2048 === 0) { checkAbort(signal); await yieldImmediate(); }
+      if (!buyer.station.coordinates || ((filters.requireFullStockDemand || buyer.station.isCarrier) && buyer.item.demand < filters.minStock) ||
+        !matchesMarketType(buyer.station, filters.buyerType) || !qualifies(buyer.station)) continue;
+      const key = spatialCell(buyer.station.coordinates, filters.maxRouteDistanceLy);
+      if (!cells.has(key)) cells.set(key, []);
+      cells.get(key).push(buyer);
+    }
+    if (cells.size) index.set(commodity, cells);
+  }
+  checkAbort(signal);
+  return index;
+}
 
 /** Re-matches against all eligible buyers AFTER filters; changes do not require another network refresh. */
 export async function analyzeMarkets(input, { settings = DEFAULT_SETTINGS, query = {}, context = null,
@@ -381,22 +428,41 @@ export async function analyzeMarkets(input, { settings = DEFAULT_SETTINGS, query
     if (!eligibleCache.has(station.id)) eligibleCache.set(station.id, eligible(station, filters, nowMs));
     return eligibleCache.get(station.id);
   };
+  const nearbyBuyers = filters.maxRouteDistanceLy === null ? null : await indexNearbyBuyers(database, filters, qualifies, signal);
+  let previousSellerPosition = null, previousCellKeys = null;
   let comparisons = 0, sellerCandidates = 0;
   for (const seller of database.sellers) {
     if (++comparisons % 512 === 0) { checkAbort(signal); await yieldImmediate(); }
     const { station, item } = seller;
-    if (item.supply < filters.minStock || !qualifies(station)) continue;
+    if (item.supply < filters.minStock || !matchesMarketType(station, filters.sellerType) || !qualifies(station)) continue;
     const corrosive = /thargoid|caustic|corrosive|unknown (?:artefact|artifact|probe|link)/i.test(`${item.commodity} ${item.category || ''}`);
     if (filters.excludePotentiallyCorrosive && corrosive) continue;
     const playerDistance = distanceLy(current.StarPos, station.coordinates);
     if (filters.maxPlayerDistanceLy !== null && (playerDistance === null || playerDistance > filters.maxPlayerDistanceLy)) continue;
     sellerCandidates++;
+    let buyerLists;
+    if (nearbyBuyers) {
+      if (!station.coordinates) continue;
+      if (previousSellerPosition !== station.coordinates) {
+        previousSellerPosition = station.coordinates;
+        previousCellKeys = neighboringCells(station.coordinates, filters.maxRouteDistanceLy);
+      }
+      const commodityCells = nearbyBuyers.get(item.key);
+      if (!commodityCells) continue;
+      buyerLists = [];
+      for (const key of previousCellKeys) {
+        const entries = commodityCells.get(key);
+        if (entries) buyerLists.push(entries);
+      }
+    } else buyerLists = [database.buyers.get(item.key) || []];
     let best = null, bestDistance = null;
-    for (const buyer of database.buyers.get(item.key) || []) {
+    for (const buyerList of buyerLists) for (const buyer of buyerList) {
       if (++comparisons % 512 === 0) { checkAbort(signal); await yieldImmediate(); }
       if (buyer.item.sellPrice <= item.buyPrice) break;
       if (best && buyer.item.sellPrice < best.item.sellPrice) break;
-      if (buyer.station.id === station.id || buyer.item.demand < item.supply || !qualifies(buyer.station)) continue;
+      if (buyer.station.id === station.id || !matchesMarketType(buyer.station, filters.buyerType) || !qualifies(buyer.station)) continue;
+      if (filters.requireFullStockDemand ? buyer.item.demand < item.supply :
+        buyer.station.isCarrier && Math.min(item.supply, buyer.item.demand) < filters.minStock) continue;
       const routeDistance = distanceLy(station.coordinates, buyer.station.coordinates);
       if (filters.maxRouteDistanceLy !== null && (routeDistance === null || routeDistance > filters.maxRouteDistanceLy)) continue;
       const freshnessTie = (buyer.station.marketUpdatedMs ?? -Infinity) - (best?.station.marketUpdatedMs ?? -Infinity);
@@ -407,13 +473,17 @@ export async function analyzeMarkets(input, { settings = DEFAULT_SETTINGS, query
       }
     }
     if (!best) continue;
+    const stock = best.station.isCarrier ? Math.min(item.supply, best.item.demand) : item.supply;
+    const demandLimited = stock < item.supply;
     const margin = best.item.sellPrice - item.buyPrice;
     const spendable = filters.credits === null ? null : Math.max(0, filters.credits - filters.creditReserve);
     const load = filters.cargoCapacity === null || spendable === null ? null :
-      Math.min(item.supply, filters.cargoCapacity, Math.floor(spendable / item.buyPrice));
+      Math.min(stock, filters.cargoCapacity, Math.floor(spendable / item.buyPrice));
     if (list === 'affordable' && !(load > 0)) continue;
-    const fullStockCost = safeProduct(item.buyPrice, item.supply), fullStockProfit = safeProduct(margin, item.supply);
+    const fullStockCost = safeProduct(item.buyPrice, stock), fullStockProfit = safeProduct(margin, stock);
     const flags = [...stationFlags(station, 'seller', filters, nowMs), ...stationFlags(best.station, 'buyer', filters, nowMs), 'bulk-price-unmodeled'];
+    if (demandLimited) flags.push('buyer-demand-limits-lot');
+    if (!filters.requireFullStockDemand && !best.station.isCarrier) flags.push('station-demand-not-order-limit');
     if (corrosive) flags.push('potentially-corrosive-cargo');
     if (fullStockCost === null || fullStockProfit === null) flags.push('numeric-overflow');
     if (load === null) flags.push('budget-or-capacity-unknown');
@@ -422,16 +492,16 @@ export async function analyzeMarkets(input, { settings = DEFAULT_SETTINGS, query
     rows.push({
       id: `${station.id}:${encodeURIComponent(item.key)}`, commodity: item.commodity, commodityKey: item.key,
       category: item.category, seller: stationView(station, nowMs), buyer: stationView(best.station, nowMs),
-      buyPrice: item.buyPrice, sellPrice: best.item.sellPrice, stock: item.supply, buyerDemand: best.item.demand,
+      buyPrice: item.buyPrice, sellPrice: best.item.sellPrice, stock, sellerStock: item.supply, buyerDemand: best.item.demand, demandLimited,
       marginPerTonne: margin, fullStockCost, fullStockProfit, fullStockProfitConditional: true,
       availableCredits: spendable, affordableCargoPerTrip: load,
       costPerLoad: load === null ? null : safeProduct(item.buyPrice, load),
       profitPerLoad: load === null ? null : safeProduct(margin, load),
-      tripsNeeded: load > 0 ? Math.ceil(item.supply / load) : null,
+      tripsNeeded: load > 0 ? Math.ceil(stock / load) : null,
       playerToSellerLy: playerDistance, sellerToBuyerLy: bestDistance,
       sharedBuyerDemandKey: `${best.station.id}:${encodeURIComponent(item.key)}`,
-      loadToDemandFraction: load === null ? null : load / best.item.demand,
-      stockToDemandFraction: item.supply / best.item.demand,
+      loadToDemandFraction: load === null || best.item.demand === 0 ? null : load / best.item.demand,
+      stockToDemandFraction: best.item.demand === 0 ? null : stock / best.item.demand,
       potentiallyCorrosive: corrosive, bulkPriceRisk: true, flags,
     });
   }
@@ -464,8 +534,9 @@ export function buildCsv(rows) {
     ['Buyer', r => r.buyer.displayName], ['Buyer reported name', r => r.buyer.name],
     ['Buyer market ID', r => r.buyer.id], ['Buyer system', r => r.buyer.systemName],
     ['Buy price (Cr/t)', r => r.buyPrice], ['Sell price (Cr/t)', r => r.sellPrice], ['Margin (Cr/t)', r => r.marginPerTonne],
-    ['Seller stock (t)', r => r.stock], ['Buyer demand (t)', r => r.buyerDemand],
-    ['Full-stock cost (Cr)', r => r.fullStockCost], ['Conditional full-stock profit (Cr)', r => r.fullStockProfit],
+    ['Seller stock (t)', r => r.sellerStock ?? r.stock], ['Buyer demand (t)', r => r.buyerDemand],
+    ['Tradable lot (t)', r => r.stock], ['Demand-limited lot', r => r.demandLimited],
+    ['Lot cost (Cr)', r => r.fullStockCost], ['Conditional lot profit (Cr)', r => r.fullStockProfit],
     ['Affordable load (t)', r => r.affordableCargoPerTrip], ['Load cost (Cr)', r => r.costPerLoad],
     ['Quoted load profit (Cr)', r => r.profitPerLoad], ['Trips at initial affordable load', r => r.tripsNeeded],
     ['Player to seller (ly)', r => r.playerToSellerLy], ['Seller to buyer (ly)', r => r.sellerToBuyerLy],

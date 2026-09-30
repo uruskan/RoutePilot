@@ -42,7 +42,7 @@ test('CLI read-only results can use explicit coordinates but never guesses a mis
 test('CLI export writes CSV to the specified path and does not fetch', async t => {
   const root = await setup(t); const file = join(root, 'exports with spaces', 'trades.csv');
   const result = await run(root, ['export', '--output', file]); assert.equal(result.code, 0, result.error);
-  const csv = await readFile(file, 'utf8'); assert.ok(csv.startsWith('\uFEFF')); assert.match(csv, /Conditional full-stock profit/);
+  const csv = await readFile(file, 'utf8'); assert.ok(csv.startsWith('\uFEFF')); assert.match(csv, /Conditional lot profit/);
 });
 test('CLI rejects malformed coordinates and unknown options instead of coercing them', async t => {
   const root = await setup(t);

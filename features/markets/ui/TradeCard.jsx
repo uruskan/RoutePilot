@@ -19,7 +19,7 @@ function Endpoint({ station, side, price, onOpenExternal }) {
     <span className="rp-trade-label">{side === 'seller' ? '01 / BUY FROM' : '02 / SELL TO'}</span>
     <SourceLink station={station} onOpenExternal={onOpenExternal} />
     <span className="rp-trade-system">{station.systemName || 'System unknown'}</span>
-    <div className="rp-trade-endpoint-meta"><span>{credits(price)} / t</span><span>{station.knownPad ? `Pad ${station.knownPad}` : 'Pad unknown'} · quote {formatAge(station.marketAgeHours)}</span></div>
+    <div className="rp-trade-endpoint-meta"><span>{credits(price)} / t</span><span>{station.isCarrier ? (side === 'buyer' ? 'Player buy order' : 'Player carrier') : 'Station market'}</span><span>{station.knownPad ? `Pad ${station.knownPad}` : 'Pad unknown'} · quote {formatAge(station.marketAgeHours)}</span></div>
   </div>;
 }
 
@@ -48,7 +48,7 @@ export default function TradeCard({ row, rank, currentSystem, requiredPad, onOpe
       </div>
       <div className="rp-trade-profit"><span className="rp-trade-label">PROFIT PER LOAD</span><strong title={credits(row.profitPerLoad)}>{compactCredits(row.profitPerLoad)}</strong>
         <small>{Number.isFinite(row.affordableCargoPerTrip) ? `With your ${formatNumber(row.affordableCargoPerTrip)} t load` : 'Cargo or budget unknown'}</small></div>
-      <div className="rp-trade-total"><span className="rp-trade-label">IF ALL STOCK SELLS</span><strong title={credits(row.fullStockProfit)}>{compactCredits(row.fullStockProfit)}</strong>
+      <div className="rp-trade-total"><span className="rp-trade-label">IF ENTIRE LOT SELLS</span><strong title={credits(row.fullStockProfit)}>{compactCredits(row.fullStockProfit)}</strong>
         <small>{Number.isFinite(row.tripsNeeded) ? `${formatNumber(row.tripsNeeded)} loads at this capacity` : 'Set ship & budget for load count'}</small></div>
     </div>
 
@@ -60,7 +60,7 @@ export default function TradeCard({ row, rank, currentSystem, requiredPad, onOpe
 
     <div className="rp-trade-facts">
       <span className="rp-trade-position"><MapPin size={14} aria-hidden="true" /><span><b>{routeDistanceLabel(currentSystem, row.seller.systemName, row.playerToSellerLy, { player: true })}</b> to seller</span></span>
-      <span><b>{formatNumber(row.stock)} t</b> available</span>
+      <span><b>{formatNumber(row.stock)} t</b> tradable{row.demandLimited ? ' · estimate capped by demand' : ''}</span>
       <span><b>{credits(row.marginPerTonne)}</b> profit / t</span>
       <span><b>{credits(row.costPerLoad)}</b> to buy one load</span>
     </div>
@@ -73,8 +73,10 @@ export default function TradeCard({ row, rank, currentSystem, requiredPad, onOpe
     <details className="rp-trade-details">
       <summary><span>Trade details & checks</span><span className="rp-trade-detail-hint">Demand, exact totals, source data</span><ChevronDown size={15} aria-hidden="true" /></summary>
       <div className="rp-trade-detail-content">
-        <div className="rp-trade-calculations"><div><span>Exact profit / load</span><strong>{credits(row.profitPerLoad)}</strong></div><div><span>Buyer demand</span><strong>{formatNumber(row.buyerDemand)} t</strong></div><div><span>Cost of all stock</span><strong>{credits(row.fullStockCost)}</strong></div><div><span>Profit on all stock</span><strong>{credits(row.fullStockProfit)}</strong></div></div>
-        <p className="rp-trade-assumption">Profit is a quote-based estimate. Moving all stock assumes unchanged prices and demand across every load. Other offers may use the same buyer demand.</p>
+        <div className="rp-trade-calculations"><div><span>Exact profit / load</span><strong>{credits(row.profitPerLoad)}</strong></div><div><span>Seller stock / buyer demand</span><strong>{formatNumber(row.sellerStock ?? row.stock)} / {formatNumber(row.buyerDemand)} t</strong></div><div><span>Cost of tradable lot</span><strong>{credits(row.fullStockCost)}</strong></div><div><span>Profit on tradable lot</span><strong>{credits(row.fullStockProfit)}</strong></div></div>
+        <p className="rp-trade-assumption">Profit is a quote-based estimate for {formatNumber(row.stock)} t. Carrier buy orders limit the lot quantity; station demand is not a fixed order limit. Moving this lot assumes unchanged prices across every load. Other offers may share the same stock or order.</p>
+        {row.buyer.isCarrier && <p>The carrier owner posted this buy order. Sell through its commodity market while the order has demand and docking is allowed. This report does not reserve the order or verify it live.</p>}
+        {!row.buyer.isCarrier && <p>Stations can accept sales beyond displayed demand, including zero demand. The quoted price is not guaranteed for every load; market changes and bulk pricing are not modeled here.</p>}
         <div className="rp-trade-sources"><SourceDetail station={row.seller} label="Seller source" onOpenExternal={onOpenExternal} /><SourceDetail station={row.buyer} label="Buyer source" onOpenExternal={onOpenExternal} /></div>
         <p>Light-years measure distance between systems, not travel time. Arrival distances are measured from the arrival star, not between these two markets. Carriers can move.</p>
         {accessWarnings.map(warning => <p key={warning.code} className="rp-trade-access-detail">{warning.detail}{warning.sourceUrl && <> <a href={warning.sourceUrl} target="_blank" rel="noopener noreferrer">Access guide ↗</a></>}</p>)}

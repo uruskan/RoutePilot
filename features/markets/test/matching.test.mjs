@@ -193,7 +193,7 @@ test('CSV protection covers formula prefixes, whitespace, newlines and embedded 
   const row = (await analyze([station(1, { carrier_name: '=DANGEROUS()' }), buyer(2)])).rows[0];
   const csv = buildCsv([row]);
   assert.ok(csv.startsWith('\uFEFF')); assert.ok(csv.includes('"\'=DANGEROUS()"'));
-  assert.ok(csv.includes('Conditional full-stock profit')); assert.ok(csv.endsWith('\r\n'));
+  assert.ok(csv.includes('Conditional lot profit')); assert.ok(csv.endsWith('\r\n'));
 });
 test('settings and result queries reject typos, coercions, duplicates and invalid ranges', () => {
   for (const patch of [{ cargoCapacity: '' }, { credits: false }, { minStock: 0 }, { windowHours: 0 }, { requiredPad: 'XL' }, { dailyRefresh: 'false' }, { unknown: 1 }]) assert.throws(() => validateSettings(patch));

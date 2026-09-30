@@ -12,6 +12,7 @@ export const MARKET_HELP = `RoutePilot-CLI.cmd markets <command>
   settings [--file settings.json] Read settings or apply a JSON settings patch
   daily on|off                   Enable/disable daily refresh while app runs
 Examples:
+  markets list --sellerType all --buyerType all --requireFullStockDemand false --excludeCarrierAccess true --maxPlayerDistanceLy 200 --maxRouteDistanceLy 50 --sort loadProfit
   markets list --sort closestSeller --maxPlayerDistanceLy 500 --requiredPad L
   markets list --sort loadProfit --cargoCapacity 1232 --credits 220000000 --creditReserve 20000000
 The RoutePilot service must already be running. No flight commands are sent.
@@ -87,7 +88,7 @@ export async function runMarketCli(args, options = {}) {
         out(`${report.total} matching lots; showing ${report.rows.length}. Location: ${clean(report.context?.systemName)}.`);
         for (const row of report.rows) {
           out(`${clean(row.commodity)} | ${clean(row.seller.displayName)} (${clean(row.seller.systemName)}) → ${clean(row.buyer.displayName)} (${clean(row.buyer.systemName)})`);
-          out(`  Stock ${num(row.stock)} t | Full-stock profit ${num(row.fullStockProfit)} Cr | Margin ${num(row.marginPerTonne)} Cr/t | Load profit ${num(row.profitPerLoad)} Cr | To seller ${num(row.playerToSellerLy)} ly | Route ${num(row.sellerToBuyerLy)} ly`);
+          out(`  Tradable ${num(row.stock)} t (seller ${num(row.sellerStock ?? row.stock)} t) | Lot profit ${num(row.fullStockProfit)} Cr | Margin ${num(row.marginPerTonne)} Cr/t | Load profit ${num(row.profitPerLoad)} Cr | To seller ${num(row.playerToSellerLy)} ly | Route ${num(row.sellerToBuyerLy)} ly`);
         }
         out('Reported quotes can change. Full-stock profits are conditional and not additive.');
       }

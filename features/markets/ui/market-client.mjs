@@ -64,9 +64,11 @@ export function createMarketClient({ baseUrl = 'http://127.0.0.1:47856/api/marke
 
 export const DRAFT_FIELDS = Object.freeze(['cargoCapacity', 'credits', 'creditReserve', 'windowHours',
   'minStock', 'maxMarketAgeHours', 'requiredPad', 'maxPlayerDistanceLy', 'maxRouteDistanceLy',
-  'allowUnknownPad', 'allowPermitSystems', 'allowPlanetary', 'excludePotentiallyCorrosive', 'dailyRefresh', 'dailyUtcHour']);
+  'allowUnknownPad', 'allowPermitSystems', 'allowPlanetary', 'excludePotentiallyCorrosive',
+  'excludeCarrierAccess', 'sellerType', 'buyerType', 'requireFullStockDemand', 'dailyRefresh', 'dailyUtcHour']);
 const NULLABLE = new Set(['cargoCapacity', 'credits', 'maxMarketAgeHours', 'maxPlayerDistanceLy', 'maxRouteDistanceLy']);
-const BOOLEAN = new Set(['allowUnknownPad', 'allowPermitSystems', 'allowPlanetary', 'excludePotentiallyCorrosive', 'dailyRefresh']);
+const BOOLEAN = new Set(['allowUnknownPad', 'allowPermitSystems', 'allowPlanetary', 'excludePotentiallyCorrosive',
+  'excludeCarrierAccess', 'requireFullStockDemand', 'dailyRefresh']);
 export function settingsToDraft(settings) {
   return Object.fromEntries(DRAFT_FIELDS.map(key => [key, BOOLEAN.has(key) ? settings[key] : settings[key] ?? '']));
 }
@@ -75,7 +77,7 @@ export function draftToPatch(draft) {
   for (const key of DRAFT_FIELDS) {
     const value = draft[key];
     if (BOOLEAN.has(key)) { if (typeof value !== 'boolean') throw new MarketClientError('VALIDATION', `${key} must be a checkbox value.`); patch[key] = value; }
-    else if (key === 'requiredPad') patch[key] = value;
+    else if (['requiredPad', 'sellerType', 'buyerType'].includes(key)) patch[key] = value;
     else if (value === '' || value === null || value === undefined) {
       if (!NULLABLE.has(key)) throw new MarketClientError('VALIDATION', `${key} is required.`);
       patch[key] = null;

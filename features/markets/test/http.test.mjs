@@ -84,7 +84,7 @@ test('CSV export has attachment headers, a UTF-8 BOM and conditional-profit labe
   const response = await request('/export?list=all'); assert.equal(response.status, 200);
   assert.match(response.headers.get('content-disposition'), /attachment/);
   const bytes = Buffer.from(await response.arrayBuffer()); assert.deepEqual([...bytes.subarray(0, 3)], [239, 187, 191]);
-  assert.match(bytes.toString('utf8'), /Conditional full-stock profit/);
+  assert.match(bytes.toString('utf8'), /Conditional lot profit/);
 });
 test('method/route/body limits fail clearly without starting a refresh', async t => {
   const { request, service } = await setup(t);

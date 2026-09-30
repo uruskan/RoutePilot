@@ -4,7 +4,7 @@ import { mkdtemp, rm, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { analyzeMarkets, DEFAULT_SETTINGS, MarketService, validateSettings } from '../server/markets.mjs';
-import { SPREADSHEET_DEFAULT_SETTINGS, SPREADSHEET_PRESETS } from '../presets.mjs';
+import { SPREADSHEET_DEFAULT_SETTINGS, SPREADSHEET_PRESETS, NEAR_ME_PRESET } from '../presets.mjs';
 import { NOW, HOUR, at, station, buyer, quote, FAST, mockApi } from './fixtures/synthetic.mjs';
 
 const sell = (id, commodity, supply = 100, overrides = {}) => station(id, {
@@ -12,6 +12,21 @@ const sell = (id, commodity, supply = 100, overrides = {}) => station(id, {
 });
 const buy = (id, commodity, sellPrice = 200, overrides = {}) => buyer(id, {
   system_x: 10, market: [quote({ commodity, buy_price: 0, sell_price: sellPrice, supply: 0, demand: 1_000 })], ...overrides,
+});
+
+test('Near me finds demand-limited station trades with fresh short legs and preserves ship planning inputs', async () => {
+  const settings = { ...SPREADSHEET_DEFAULT_SETTINGS, ...NEAR_ME_PRESET.settings, cargoCapacity: 80, credits: 100_000, creditReserve: 5_000 };
+  const records = [sell(1, 'Gold', 1_000, { type: 'Outpost', system_x: 100 }),
+    buy(2, 'Gold', 250, { type: 'Fleet Carrier', system_x: 125, market: [quote({ commodity: 'Gold', supply: 0, buy_price: 0, sell_price: 250, demand: 150 })] }),
+    buy(3, 'Gold', 900, { system_x: 151 }), buy(4, 'Gold', 800, { system_x: 101, market_updated_at: at(-25) }),
+    sell(5, 'Silver', 1_000, { type: 'Outpost', system_x: 201 }), buy(6, 'Silver', 900, { system_x: 202 })];
+  const result = await analyzeMarkets(records, { settings, context: { systemName: 'Origin', StarPos: [0, 0, 0] }, now: NOW });
+  assert.equal(result.total, 1); assert.equal(result.rows[0].buyer.id, '2');
+  assert.equal(result.rows[0].stock, 150); assert.equal(result.rows[0].affordableCargoPerTrip, 80);
+  assert.equal(result.sort, 'loadProfit'); assert.equal(settings.creditReserve, 5_000);
+  assert.equal(Object.hasOwn(NEAR_ME_PRESET.settings, 'cargoCapacity'), false);
+  assert.equal(Object.hasOwn(NEAR_ME_PRESET.settings, 'credits'), false);
+  assert.equal(NEAR_ME_PRESET.settings.excludeCarrierAccess, true);
 });
 
 test('nearby spreadsheet query enforces 100t/48h/150ly boundaries and recomputes the best eligible buyer', async () => {

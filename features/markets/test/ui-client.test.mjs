@@ -56,6 +56,13 @@ test('UI formatting distinguishes unknown, zero and future market times', () => 
   assert.equal(formatAge(null), 'Age unknown'); assert.equal(formatAge(-1), 'Future timestamp'); assert.equal(formatAge(0), '<1 min old');
   assert.equal(formatAge(0.5), '30 min old');
 });
+
+test('UI editing round-trips access, market types and demand coverage without converting enums to numbers', () => {
+  const draft = settingsToDraft({ ...DEFAULT_SETTINGS, sellerType: 'all', buyerType: 'stations', excludeCarrierAccess: true, requireFullStockDemand: false });
+  const patch = draftToPatch(draft);
+  assert.equal(patch.sellerType, 'all'); assert.equal(patch.buyerType, 'stations');
+  assert.equal(patch.excludeCarrierAccess, true); assert.equal(patch.requireFullStockDemand, false);
+});
 test('UI malformed JSON errors are explicit', async () => {
   const client = createMarketClient({ fetchImpl: async () => new Response('not json') });
   await assert.rejects(client.status(), { code: 'SCHEMA' });

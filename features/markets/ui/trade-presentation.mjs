@@ -1,5 +1,5 @@
 /** Presentation only: distances remain system-centre straight-line distances. */
-const normalizedSystem = value => typeof value === 'string' ? value.trim().replace(/\s+/g, ' ').toUpperCase() : '';
+import { normalizedSystem, isKnownCarrierAccessSystem } from '../access-rules.mjs';
 
 export function sameSystem(first, second) {
   const name = normalizedSystem(first);
@@ -24,7 +24,7 @@ export const RACKHAMS_ACCESS_SOURCE = Object.freeze({
 /** Facts that materially change whether the user can carry out a displayed trade. */
 export function tradeAccessWarnings(row, requiredPad = 'any') {
   const warnings = [];
-  if ([row?.seller, row?.buyer].some(station => normalizedSystem(station?.systemName) === 'HIP 58832')) {
+  if ([row?.seller, row?.buyer].some(station => isKnownCarrierAccessSystem(station?.systemName))) {
     warnings.push({
       code: 'rackhams-carrier-access',
       label: 'Fleet carrier access',

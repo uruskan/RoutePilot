@@ -28,6 +28,9 @@ Common:
   --max-from-me LY --max-route LY
   --allow-unknown-pad true|false --allow-permits true|false
   --allow-surface true|false --exclude-corrosive true|false
+  --exclude-carrier-access true|false  Hide known carrier-only systems (HIP 58832).
+  --seller-type carriers|stations|all --buyer-type carriers|stations|all
+  --require-full-stock-demand true|false  False caps the lot at available buyer demand.
   --sort closestSeller|shortestRoute|margin|loadProfit|stockProfit
   --list all|affordable --limit N --offset N
   --output PATH                export only; defaults to stdout.
@@ -46,7 +49,7 @@ Exit codes: 0 success; 1 operation/validation failure; 2 cancelled refresh.
 `;
 const stringOptions = ['root', 'system', 'position', 'context-file', 'cargo', 'credits', 'reserve',
   'min-stock', 'max-age', 'pad', 'max-from-me', 'max-route', 'allow-unknown-pad', 'allow-permits',
-  'allow-surface', 'exclude-corrosive', 'sort', 'list', 'limit', 'offset', 'output',
+  'allow-surface', 'exclude-corrosive', 'exclude-carrier-access', 'seller-type', 'buyer-type', 'require-full-stock-demand', 'sort', 'list', 'limit', 'offset', 'output',
   'window-hours', 'daily', 'utc-hour', 'patch', 'patch-file'];
 const optionSchema = Object.fromEntries(stringOptions.map(key => [key, { type: 'string' }]));
 optionSchema.help = { type: 'boolean', short: 'h' }; optionSchema.quiet = { type: 'boolean' };
@@ -54,6 +57,7 @@ const tradeMap = { cargo: 'cargoCapacity', credits: 'credits', reserve: 'creditR
   'max-age': 'maxMarketAgeHours', pad: 'requiredPad', 'max-from-me': 'maxPlayerDistanceLy',
   'max-route': 'maxRouteDistanceLy', 'allow-unknown-pad': 'allowUnknownPad', 'allow-permits': 'allowPermitSystems',
   'allow-surface': 'allowPlanetary', 'exclude-corrosive': 'excludePotentiallyCorrosive',
+  'exclude-carrier-access': 'excludeCarrierAccess', 'seller-type': 'sellerType', 'buyer-type': 'buyerType', 'require-full-stock-demand': 'requireFullStockDemand',
   sort: 'sort', list: 'list', limit: 'limit', offset: 'offset' };
 function defaultRoot() { return process.env.LOCALAPPDATA ? join(process.env.LOCALAPPDATA, 'RoutePilot', 'markets') : join(homedir(), '.routepilot', 'markets'); }
 

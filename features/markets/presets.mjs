@@ -4,6 +4,7 @@ const common = {
   windowHours: 192, defaultSort: 'stockProfit', maxPlayerDistanceLy: null,
   requiredPad: 'any', allowUnknownPad: false, allowPermitSystems: true,
   allowPlanetary: true, excludePotentiallyCorrosive: false,
+  sellerType: 'carriers', buyerType: 'all', requireFullStockDemand: true,
 };
 
 export const SPREADSHEET_PRESETS = Object.freeze({
@@ -17,6 +18,15 @@ export const SPREADSHEET_PRESETS = Object.freeze({
     description: 'Highest qualifying buyer for each carrier lot; markets up to 8 days old; unrestricted distance and stock from 1 t. Ranked by full-stock profit; buyer demand covers all stock.',
     settings: Object.freeze({ ...common, minStock: 1, maxMarketAgeHours: 192, maxRouteDistanceLy: null }),
   }),
+});
+
+// An ordinary ship's short trading runs, not the spreadsheet's whole-carrier lots.
+export const NEAR_ME_PRESET = Object.freeze({
+  label: 'Near me',
+  description: 'Stations and public carriers within 200 ly of you; trade leg up to 50 ly; quotes up to 24 hours old; at least 100 t tradable. Ranked by profit per load.',
+  settings: Object.freeze({ windowHours: 192, defaultSort: 'loadProfit',
+    maxPlayerDistanceLy: 200, maxRouteDistanceLy: 50, maxMarketAgeHours: 24, minStock: 100,
+    sellerType: 'all', buyerType: 'all', requireFullStockDemand: false, excludeCarrierAccess: true }),
 });
 
 // Original blue worksheet inputs: editable planning assumptions, not live
